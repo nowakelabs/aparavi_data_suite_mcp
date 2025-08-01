@@ -247,8 +247,12 @@ class AparaviMCPServer:
                     # Send JSON response to stdout
                     if response is not None:
                         response_json = json.dumps(response)
-                        print(response_json, flush=True)
-                    
+                        try:
+                            print(response_json, flush=True)
+                        except (OSError, IOError) as e:
+                            # Handle case where stdout is closed (e.g., when Claude Desktop disconnects)
+                            self.logger.debug(f"Stdout write failed (connection closed): {e}")
+                            break
                 except json.JSONDecodeError as e:
                     self.logger.error(f"Invalid JSON received: {e}")
                     continue
