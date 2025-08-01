@@ -114,14 +114,25 @@ class AparaviMCPServer:
         
         try:
             # Test APARAVI API connectivity
-            is_healthy = await self.aparavi_client.health_check()
+            health_result = await self.aparavi_client.health_check()
             
-            if is_healthy:
-                message = "SUCCESS: APARAVI MCP Server is healthy and connected to APARAVI API"
-                self.logger.info("Health check passed")
+            if isinstance(health_result, dict):
+                # Successful response with API data
+                import json
+                formatted_response = json.dumps(health_result, indent=2)
+                message = f"SUCCESS: APARAVI MCP Server is healthy and connected to APARAVI API\n\nAPARAVI API Response:\n{formatted_response}"
+                self.logger.info("Health check passed with API response data")
+            elif isinstance(health_result, str):
+                # Error message from health check
+                if "Error" in health_result or "failed" in health_result:
+                    message = f"WARNING: {health_result}"
+                    self.logger.warning(f"Health check failed: {health_result}")
+                else:
+                    message = f"SUCCESS: {health_result}"
+                    self.logger.info(f"Health check passed: {health_result}")
             else:
-                message = "WARNING: APARAVI MCP Server is running but cannot connect to APARAVI API"
-                self.logger.warning("Health check failed - API connectivity issue")
+                message = f"UNKNOWN: Unexpected health check result: {health_result}"
+                self.logger.warning(f"Unexpected health check result type: {type(health_result)}")
             
             return {
                 "content": [{"type": "text", "text": message}]

@@ -7,7 +7,6 @@ import json
 import hashlib
 from typing import Any, Dict, Optional, Union
 from datetime import datetime, timedelta
-import urllib.parse
 
 
 def setup_logging(log_level: str = "INFO") -> logging.Logger:
@@ -41,15 +40,17 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
 
 def encode_aql_query(query: str) -> str:
     """
-    URL encode an AQL query string for API requests.
+    Prepare an AQL query string for API requests.
+    Note: aiohttp automatically handles URL encoding, so we return the query as-is
+    to prevent double encoding.
     
     Args:
         query: Raw AQL query string
         
     Returns:
-        str: URL-encoded query string
+        str: Query string (not URL encoded - aiohttp handles this)
     """
-    return urllib.parse.quote(query, safe='')
+    return query
 
 
 def create_query_options(

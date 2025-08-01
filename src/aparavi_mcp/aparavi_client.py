@@ -52,7 +52,6 @@ class AparaviClient:
                 timeout=timeout,
                 headers={
                     "Authorization": self._auth_header,
-                    "Content-Type": "application/json",
                     "Accept": "application/json"
                 }
             )
@@ -65,36 +64,65 @@ class AparaviClient:
             self._session = None
             self.logger.info("APARAVI client session closed")
     
-    async def health_check(self) -> bool:
+    async def health_check(self) -> Union[Dict[str, Any], str]:
         """
         Perform a health check against the APARAVI API.
+        Tests API connectivity and validates AQL syntax using proper APARAVI query language.
         
         Returns:
-            bool: True if API is accessible, False otherwise
+            Union[Dict[str, Any], str]: API response data if successful, error message if failed
         """
         try:
             await self.initialize()
             
-            # Simple query to test connectivity
-            test_query = "SELECT COUNT(*) FROM files LIMIT 1"
+            # Use proper AQL syntax from reference guide to test connectivity
+            # This validates syntax without executing the full query
+            test_query = "SELECT name FROM STORE('/') WHERE ClassID = 'idxobject' LIMIT 1"
+            
+            self.logger.debug(f"Testing health check with query: {test_query}")
+            
+            # Use validation mode to test syntax and connectivity without full execution
+            params = {
+                "select": encode_aql_query(test_query),
+                "options": create_query_options(format_type="json", validate=True)
+            }
             
             async with self._session.get(
                 self.config.query_endpoint,
-                params={
-                    "select": encode_aql_query(test_query),
-                    "options": create_query_options()
-                }
+                params=params
             ) as response:
+                self.logger.debug(f"Health check response status: {response.status}")
                 if response.status == 200:
-                    self.logger.debug("Health check passed")
-                    return True
+                    try:
+                        response_text = await response.text()
+                        self.logger.info(f"APARAVI API validation response: {response_text}")
+                        
+                        # Parse response to verify validation success
+                        import json
+                        response_data = json.loads(response_text)
+                        
+                        if response_data.get("status") == "OK":
+                            self.logger.info("Health check passed - API accessible and AQL query executed successfully")
+                            return response_data  # Return the actual API response data
+                        elif response_data.get("status") == "error":
+                            error_msg = response_data.get("message", "Unknown error")
+                            self.logger.warning(f"Health check failed - AQL error: {error_msg}")
+                            return f"AQL Error: {error_msg}"
+                        else:
+                            self.logger.info("Health check passed - API accessible (unexpected response format)")
+                            return response_data  # Return whatever we got
+                            
+                    except Exception as e:
+                        self.logger.warning(f"Could not parse response, but got 200 status: {format_error_message(e)}")
+                        return f"Response received but could not parse JSON: {response_text[:200]}..."
                 else:
                     self.logger.warning(f"Health check failed with status {response.status}")
-                    return False
+                    return f"HTTP Error {response.status}: API request failed"
                     
         except Exception as e:
-            self.logger.error(f"Health check failed: {format_error_message(e)}")
-            return False
+            error_msg = format_error_message(e)
+            self.logger.error(f"Health check failed: {error_msg}")
+            return f"Health check failed: {error_msg}"
     
     async def execute_query(
         self,
