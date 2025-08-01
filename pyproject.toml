@@ -12,12 +12,14 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp>=1.0.0",
+    "mcp==1.8.0",
     "requests>=2.31.0",
     "pydantic>=2.5.0",
     "pyyaml>=6.0.1",
     "python-dotenv>=1.0.0",
     "aiohttp>=3.9.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +32,9 @@ dev = [
     "types-requests>=2.31.0",
     "types-pyyaml>=6.0.12",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aparavi_mcp"]
 
 [tool.black]
 line-length = 88

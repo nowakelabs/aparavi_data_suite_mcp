@@ -1,14 +1,15 @@
 """
-APARAVI MCP Server
+APARAVI MCP Server Package
 
-A Model Context Protocol server for querying APARAVI data management systems.
-Provides 20 predefined AQL reports as MCP tools for Claude Desktop integration.
+A Model Context Protocol (MCP) server for querying APARAVI data management systems.
+Provides tools for executing predefined AQL reports and managing data queries.
 """
 
 __version__ = "0.1.0"
 __author__ = "Nowake Labs"
-__email__ = "matt@nowakelabs.com"
+__email__ = "hello@nowakelabs.com"
 
-from .server import AparaviMCPServer
+# Import main server class
+from .server import AparaviMCPServer, main
 
-__all__ = ["AparaviMCPServer"]
+__all__ = ["AparaviMCPServer", "main"]

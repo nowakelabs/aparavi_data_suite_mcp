@@ -1,22 +1,13 @@
 """
 Main MCP server implementation for APARAVI data management system.
+This simplified version avoids the TaskGroup issues present in the standard MCP SDK.
 """
 
 import asyncio
+import json
 import logging
-from typing import Any, Dict, List, Optional, Sequence
-from mcp.server import Server
-from mcp.server.models import InitializationOptions
-from mcp.server.stdio import stdio_server
-from mcp.types import (
-    CallToolRequest,
-    CallToolResult,
-    ListToolsRequest,
-    TextContent,
-    Tool,
-    INVALID_PARAMS,
-    INTERNAL_ERROR
-)
+import sys
+from typing import Any, Dict, List, Optional
 
 from .config import Config, load_config, validate_config
 from .utils import setup_logging, format_error_message
@@ -41,84 +32,84 @@ class AparaviMCPServer:
         self.logger = setup_logging(self.config.server.log_level)
         self.logger.info(f"Initializing APARAVI MCP Server v{self.config.server.version}")
         
-        # Initialize MCP server
-        self.server = Server(self.config.server.name)
-        
         # Initialize APARAVI client
         self.aparavi_client = AparaviClient(self.config.aparavi, self.logger)
         
-        # Register MCP handlers
-        self._register_handlers()
-        
         self.logger.info("APARAVI MCP Server initialized successfully")
     
-    def _register_handlers(self) -> None:
-        """Register MCP server handlers."""
+    async def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle MCP initialize request."""
+        self.logger.info("Handling initialize request")
         
-        @self.server.list_tools()
-        async def handle_list_tools() -> List[Tool]:
-            """List available APARAVI query tools."""
-            self.logger.debug("Listing available tools")
-            
-            # For Phase 1, we'll return a basic health check tool
-            # Phase 2 will add the 20 APARAVI report tools
-            tools = [
-                Tool(
-                    name="health_check",
-                    description="Check the health and connectivity of the APARAVI MCP server",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                ),
-                Tool(
-                    name="server_info",
-                    description="Get information about the APARAVI MCP server configuration",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                )
-            ]
-            
-            self.logger.debug(f"Returning {len(tools)} tools")
-            return tools
-        
-        @self.server.call_tool()
-        async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResult:
-            """Handle tool execution requests."""
-            self.logger.info(f"Executing tool: {name}")
-            
-            try:
-                if name == "health_check":
-                    return await self._handle_health_check()
-                elif name == "server_info":
-                    return await self._handle_server_info()
-                else:
-                    error_msg = f"Unknown tool: {name}"
-                    self.logger.error(error_msg)
-                    return CallToolResult(
-                        content=[TextContent(type="text", text=error_msg)],
-                        isError=True
-                    )
-                    
-            except Exception as e:
-                error_msg = format_error_message(e, f"Tool execution failed for {name}")
-                self.logger.error(error_msg)
-                return CallToolResult(
-                    content=[TextContent(type="text", text=error_msg)],
-                    isError=True
-                )
+        return {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {}
+            },
+            "serverInfo": {
+                "name": self.config.server.name,
+                "version": self.config.server.version
+            }
+        }
     
-    async def _handle_health_check(self) -> CallToolResult:
-        """
-        Handle health check requests.
+    async def handle_list_tools(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle tools/list request."""
+        self.logger.debug("Listing available tools")
         
-        Returns:
-            CallToolResult: Health check results
-        """
+        tools = [
+            {
+                "name": "health_check",
+                "description": "Check the health and connectivity of the APARAVI MCP server",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "server_info",
+                "description": "Get information about the APARAVI MCP server configuration",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        ]
+        
+        self.logger.debug(f"Returning {len(tools)} tools")
+        return {"tools": tools}
+    
+    async def handle_call_tool(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle tools/call request."""
+        tool_name = params.get("name", "")
+        arguments = params.get("arguments", {})
+        
+        self.logger.info(f"Executing tool: {tool_name}")
+        
+        try:
+            if tool_name == "health_check":
+                return await self._handle_health_check()
+            elif tool_name == "server_info":
+                return await self._handle_server_info()
+            else:
+                error_msg = f"Unknown tool: {tool_name}"
+                self.logger.error(error_msg)
+                return {
+                    "content": [{"type": "text", "text": error_msg}],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = format_error_message(e, f"Tool execution failed for {tool_name}")
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+    
+    async def _handle_health_check(self) -> Dict[str, Any]:
+        """Handle health check requests."""
         self.logger.debug("Performing health check")
         
         try:
@@ -132,25 +123,20 @@ class AparaviMCPServer:
                 message = "⚠️ APARAVI MCP Server is running but cannot connect to APARAVI API"
                 self.logger.warning("Health check failed - API connectivity issue")
             
-            return CallToolResult(
-                content=[TextContent(type="text", text=message)]
-            )
+            return {
+                "content": [{"type": "text", "text": message}]
+            }
             
         except Exception as e:
             error_msg = f"❌ Health check failed: {format_error_message(e)}"
             self.logger.error(error_msg)
-            return CallToolResult(
-                content=[TextContent(type="text", text=error_msg)],
-                isError=True
-            )
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
     
-    async def _handle_server_info(self) -> CallToolResult:
-        """
-        Handle server info requests.
-        
-        Returns:
-            CallToolResult: Server information
-        """
+    async def _handle_server_info(self) -> Dict[str, Any]:
+        """Handle server info requests."""
         self.logger.debug("Getting server information")
         
         try:
@@ -168,17 +154,55 @@ class AparaviMCPServer:
             for key, value in info.items():
                 info_text += f"• {key.replace('_', ' ').title()}: {value}\n"
             
-            return CallToolResult(
-                content=[TextContent(type="text", text=info_text)]
-            )
+            return {
+                "content": [{"type": "text", "text": info_text}]
+            }
             
         except Exception as e:
             error_msg = f"Failed to get server info: {format_error_message(e)}"
             self.logger.error(error_msg)
-            return CallToolResult(
-                content=[TextContent(type="text", text=error_msg)],
-                isError=True
-            )
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+    
+    async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle incoming MCP requests."""
+        method = request.get("method", "")
+        params = request.get("params", {})
+        request_id = request.get("id")
+        
+        self.logger.debug(f"Handling request: {method}")
+        
+        try:
+            if method == "initialize":
+                result = await self.handle_initialize(params)
+            elif method == "tools/list":
+                result = await self.handle_list_tools(params)
+            elif method == "tools/call":
+                result = await self.handle_call_tool(params)
+            else:
+                raise ValueError(f"Unknown method: {method}")
+            
+            response = {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": result
+            }
+            
+        except Exception as e:
+            error_msg = format_error_message(e, f"Request handling failed for {method}")
+            self.logger.error(error_msg)
+            response = {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32603,
+                    "message": error_msg
+                }
+            }
+        
+        return response
     
     async def run(self) -> None:
         """Run the MCP server."""
@@ -188,33 +212,67 @@ class AparaviMCPServer:
             # Initialize APARAVI client connection
             await self.aparavi_client.initialize()
             
-            # Run the MCP server
-            async with stdio_server() as (read_stream, write_stream):
-                await self.server.run(
-                    read_stream,
-                    write_stream,
-                    InitializationOptions(
-                        server_name=self.config.server.name,
-                        server_version=self.config.server.version
-                    )
-                )
-                
+            # Read from stdin and write to stdout
+            while True:
+                try:
+                    # Read JSON-RPC request from stdin
+                    line = await asyncio.to_thread(sys.stdin.readline)
+                    if not line:
+                        break
+                    
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Parse JSON request
+                    request = json.loads(line)
+                    
+                    # Handle request
+                    response = await self.handle_request(request)
+                    
+                    # Send JSON response to stdout
+                    response_json = json.dumps(response)
+                    print(response_json, flush=True)
+                    
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Invalid JSON received: {e}")
+                    continue
+                except Exception as e:
+                    self.logger.error(f"Error processing request: {e}")
+                    continue
+                    
         except KeyboardInterrupt:
             self.logger.info("Server shutdown requested")
         except Exception as e:
             self.logger.error(f"Server error: {format_error_message(e)}")
             raise
         finally:
+            # Ensure proper cleanup
+            try:
+                await self.aparavi_client.close()
+            except Exception as e:
+                self.logger.warning(f"Error during cleanup: {e}")
             self.logger.info("APARAVI MCP Server stopped")
+
+
+async def async_main() -> None:
+    """Async main entry point for the APARAVI MCP server."""
+    try:
+        server = AparaviMCPServer()
+        await server.run()
+    except Exception as e:
+        logging.error(f"Failed to start server: {e}")
+        raise
 
 
 def main() -> None:
     """Main entry point for the APARAVI MCP server."""
     try:
-        server = AparaviMCPServer()
-        asyncio.run(server.run())
+        asyncio.run(async_main())
+    except KeyboardInterrupt:
+        print("\nServer stopped by user", file=sys.stderr)
     except Exception as e:
-        logging.error(f"Failed to start server: {e}")
+        print(f"Server failed to start: {e}", file=sys.stderr)
         raise
 
 

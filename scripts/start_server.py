@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Startup script for APARAVI MCP Server.
+Startup script for APARAVI MCP Server (Simplified Version).
+This version avoids the TaskGroup issues present in the standard MCP SDK.
 """
 
-import sys
-import os
 import argparse
+import os
+import sys
 from pathlib import Path
 
-# Add src directory to Python path
-src_path = Path(__file__).parent.parent / "src"
+# Add the src directory to the Python path
+project_root = Path(__file__).parent.parent
+src_path = project_root / "src"
 sys.path.insert(0, str(src_path))
 
 from aparavi_mcp.server import main
@@ -23,15 +25,17 @@ def parse_args():
         epilog="""
 Examples:
   python start_server.py
-  python start_server.py --config ../config/config.yaml
   python start_server.py --log-level DEBUG
+  python start_server.py --log-level INFO
+
+Environment Variables:
+  APARAVI_HOST          - APARAVI server hostname (default: localhost)
+  APARAVI_PORT          - APARAVI server port (default: 80)
+  APARAVI_USERNAME      - APARAVI username
+  APARAVI_PASSWORD      - APARAVI password
+  APARAVI_API_VERSION   - APARAVI API version (default: v3)
+  LOG_LEVEL             - Logging level (default: INFO)
         """
-    )
-    
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to configuration file (YAML format)"
     )
     
     parser.add_argument(
@@ -52,11 +56,9 @@ if __name__ == "__main__":
         os.environ["LOG_LEVEL"] = args.log_level
     
     try:
-        print("🚀 Starting APARAVI MCP Server...")
-        print("Press Ctrl+C to stop the server")
+        # Don't print to stdout as it interferes with MCP JSON-RPC communication
+        # The server will handle its own logging via the logging framework
         main()
     except KeyboardInterrupt:
-        print("\n👋 Server stopped by user")
-    except Exception as e:
-        print(f"❌ Server failed to start: {e}")
-        sys.exit(1)
+        # Write to stderr instead of stdout to avoid interfering with MCP protocol
+        print("\nServer stopped by user", file=sys.stderr)
