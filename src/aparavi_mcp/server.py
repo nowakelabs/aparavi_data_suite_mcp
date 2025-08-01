@@ -249,7 +249,7 @@ class AparaviMCPServer:
                         response_json = json.dumps(response)
                         try:
                             print(response_json, flush=True)
-                        except (OSError, IOError) as e:
+                        except (OSError, IOError, UnicodeEncodeError) as e:
                             # Handle case where stdout is closed (e.g., when Claude Desktop disconnects)
                             self.logger.debug(f"Stdout write failed (connection closed): {e}")
                             break
