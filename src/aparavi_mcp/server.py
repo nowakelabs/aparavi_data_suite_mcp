@@ -117,10 +117,10 @@ class AparaviMCPServer:
             is_healthy = await self.aparavi_client.health_check()
             
             if is_healthy:
-                message = "✅ APARAVI MCP Server is healthy and connected to APARAVI API"
+                message = "SUCCESS: APARAVI MCP Server is healthy and connected to APARAVI API"
                 self.logger.info("Health check passed")
             else:
-                message = "⚠️ APARAVI MCP Server is running but cannot connect to APARAVI API"
+                message = "WARNING: APARAVI MCP Server is running but cannot connect to APARAVI API"
                 self.logger.warning("Health check failed - API connectivity issue")
             
             return {
@@ -128,7 +128,7 @@ class AparaviMCPServer:
             }
             
         except Exception as e:
-            error_msg = f"❌ Health check failed: {format_error_message(e)}"
+            error_msg = f"ERROR: Health check failed: {format_error_message(e)}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],
@@ -150,7 +150,7 @@ class AparaviMCPServer:
                 "log_level": self.config.server.log_level
             }
             
-            info_text = "🔧 APARAVI MCP Server Information:\n\n"
+            info_text = "APARAVI MCP Server Information:\n\n"
             for key, value in info.items():
                 info_text += f"• {key.replace('_', ' ').title()}: {value}\n"
             

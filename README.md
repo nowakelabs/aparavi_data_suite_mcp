@@ -2,7 +2,7 @@
 
 A Model Context Protocol (MCP) server that enables Claude Desktop users to query APARAVI data management systems through natural language. The server exposes 20 predefined APARAVI AQL (APARAVI Query Language) reports as MCP tools for seamless integration.
 
-## 🚀 Features
+## Features
 
 - **Natural Language Queries**: Query APARAVI data using conversational language through Claude Desktop
 - **20 Predefined Reports**: Access comprehensive data analysis reports including storage, optimization, and governance insights
@@ -11,14 +11,14 @@ A Model Context Protocol (MCP) server that enables Claude Desktop users to query
 - **Error Handling**: Robust error handling with retry logic and detailed logging
 - **Modern Python**: Built with Python 3.11+ using UV for fast dependency management
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Python 3.11 or higher
 - UV package manager
 - Access to an APARAVI data management system
 - Claude Desktop (for MCP integration)
 
-## 🛠️ Installation
+## Installation
 
 ### 1. Install UV (if not already installed)
 
@@ -71,7 +71,7 @@ cp config/config.example.yaml config/config.yaml
 # Edit config/config.yaml with your settings
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Start the MCP Server
 
@@ -93,7 +93,7 @@ The server provides basic health check and info tools for Phase 1:
 - `health_check`: Verify server and APARAVI API connectivity
 - `server_info`: Display server configuration information
 
-## 🔧 Development
+## Development
 
 ### Project Structure
 
@@ -137,7 +137,7 @@ uv run flake8 src/ tests/
 uv run mypy src/
 ```
 
-## 📊 Available Reports (Phase 2)
+## Available Reports (Phase 2)
 
 The following APARAVI AQL reports will be available as MCP tools:
 
@@ -169,14 +169,14 @@ The following APARAVI AQL reports will be available as MCP tools:
 19. Compliance Risk Assessment
 20. Custom Query Builder
 
-## 🔐 Security
+## Security
 
 - HTTP Basic Authentication with APARAVI API
 - Environment variable configuration for sensitive data
 - Input sanitization and query validation
 - Secure credential handling
 
-## 📝 Configuration Options
+## Configuration Options
 
 ### Environment Variables
 
@@ -191,7 +191,7 @@ The following APARAVI AQL reports will be available as MCP tools:
 | `CACHE_ENABLED` | true | Enable query caching |
 | `CACHE_TTL` | 300 | Cache TTL in seconds |
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -215,7 +215,7 @@ Run with debug logging for detailed information:
 python scripts/start_server.py --log-level DEBUG
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -224,7 +224,7 @@ python scripts/start_server.py --log-level DEBUG
 5. Run the test suite
 6. Submit a pull request
 
-## 📄 License
+## License
 
 [License information to be added]
 
@@ -237,5 +237,5 @@ For support and questions:
 
 ---
 
-**Phase 1 Status**: ✅ Complete - Basic MCP server with health checks and configuration
-**Phase 2 Status**: 🚧 In Development - APARAVI API integration and report tools
+**Phase 1 Status**: COMPLETE - Basic MCP server with health checks and configuration
+**Phase 2 Status**: IN DEVELOPMENT - APARAVI API integration and report tools

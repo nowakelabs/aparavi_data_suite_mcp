@@ -38,7 +38,7 @@ def send_mcp_request(process, request):
 
 def test_mcp_server():
     """Test the MCP server functionality."""
-    print("🧪 Testing APARAVI MCP Server")
+    print("Testing APARAVI MCP Server")
     print("=" * 50)
     
     # Get the project directory
@@ -46,11 +46,11 @@ def test_mcp_server():
     server_script = project_dir / "scripts" / "start_server.py"
     
     if not server_script.exists():
-        print(f"❌ Server script not found: {server_script}")
+        print(f"ERROR: Server script not found: {server_script}")
         return
     
-    print(f"📁 Project directory: {project_dir}")
-    print(f"🚀 Server script: {server_script}")
+    print(f"INFO: Project directory: {project_dir}")
+    print(f"INFO: Server script: {server_script}")
     
     try:
         # Start the MCP server process with proper Windows configuration
@@ -65,17 +65,17 @@ def test_mcp_server():
             env=dict(os.environ, LOG_LEVEL="DEBUG")  # Add debug logging
         )
         
-        print("✅ MCP server started")
+        print("SUCCESS: MCP server started")
         time.sleep(2)  # Give server more time to initialize
         
         # Check if process is still running
         if process.poll() is not None:
             stderr_output = process.stderr.read()
-            print(f"❌ Server process exited early. Error: {stderr_output}")
+            print(f"ERROR: Server process exited early. Error: {stderr_output}")
             return
         
         # Test 1: Initialize
-        print("\n📋 Test 1: Initialize")
+        print("\nTEST 1: Initialize")
         init_request = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -92,10 +92,10 @@ def test_mcp_server():
         
         response = send_mcp_request(process, init_request)
         if response and "result" in response:
-            print("✅ Initialize successful")
+            print("SUCCESS: Initialize successful")
             print(f"   Server info: {response['result'].get('serverInfo', {})}")
         else:
-            print("❌ Initialize failed")
+            print("ERROR: Initialize failed")
             # Try to read stderr for error details
             try:
                 stderr_output = process.stderr.read()
@@ -106,7 +106,7 @@ def test_mcp_server():
             return
         
         # Test 2: List Tools
-        print("\n📋 Test 2: List Tools")
+        print("\nTEST 2: List Tools")
         list_tools_request = {
             "jsonrpc": "2.0",
             "id": 2,
@@ -117,17 +117,17 @@ def test_mcp_server():
         response = send_mcp_request(process, list_tools_request)
         if response and "result" in response and "tools" in response["result"]:
             tools = response["result"]["tools"]
-            print(f"✅ Found {len(tools)} tools:")
+            print(f"SUCCESS: Found {len(tools)} tools:")
             for tool in tools:
                 print(f"   - {tool['name']}: {tool['description']}")
         else:
-            print("❌ List tools failed")
+            print("ERROR: List tools failed")
             if response:
                 print(f"   Response: {response}")
             return
         
         # Test 3: Call health_check tool
-        print("\n📋 Test 3: Call health_check tool")
+        print("\nTEST 3: Call health_check tool")
         health_check_request = {
             "jsonrpc": "2.0",
             "id": 3,
@@ -142,16 +142,16 @@ def test_mcp_server():
         if response and "result" in response:
             content = response["result"].get("content", [])
             if content:
-                print(f"✅ Health check result: {content[0].get('text', 'No text')}")
+                print(f"SUCCESS: Health check result: {content[0].get('text', 'No text')}")
             else:
-                print("✅ Health check completed (no content)")
+                print("SUCCESS: Health check completed (no content)")
         else:
-            print("❌ Health check failed")
+            print("ERROR: Health check failed")
             if response:
                 print(f"   Response: {response}")
         
         # Test 4: Call server_info tool
-        print("\n📋 Test 4: Call server_info tool")
+        print("\nTEST 4: Call server_info tool")
         server_info_request = {
             "jsonrpc": "2.0",
             "id": 4,
@@ -166,19 +166,19 @@ def test_mcp_server():
         if response and "result" in response:
             content = response["result"].get("content", [])
             if content:
-                print(f"✅ Server info result:")
+                print(f"SUCCESS: Server info result:")
                 print(content[0].get('text', 'No text'))
             else:
-                print("✅ Server info completed (no content)")
+                print("SUCCESS: Server info completed (no content)")
         else:
-            print("❌ Server info failed")
+            print("ERROR: Server info failed")
             if response:
                 print(f"   Response: {response}")
         
-        print("\n🎉 All tests completed!")
+        print("\nSUCCESS: All tests completed!")
         
     except Exception as e:
-        print(f"❌ Error running tests: {e}")
+        print(f"ERROR: Error running tests: {e}")
         import traceback
         traceback.print_exc()
     finally:
@@ -186,11 +186,11 @@ def test_mcp_server():
             if 'process' in locals():
                 process.terminate()
                 process.wait(timeout=5)
-                print("✅ Server process terminated")
+                print("SUCCESS: Server process terminated")
         except:
             if 'process' in locals():
                 process.kill()
-                print("⚠️ Server process killed")
+                print("WARNING: Server process killed")
 
 if __name__ == "__main__":
     test_mcp_server()
