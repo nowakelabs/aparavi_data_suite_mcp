@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "aparavi-mcp-server": {
+      "command": "python",
+      "args": [
+        "c:\\Users\\matth\\Documents\\GitHub\\aparavi_reporting_mcp\\scripts\\start_server_claude.py"
+      ],
+      "cwd": "c:\\Users\\matth\\Documents\\GitHub\\aparavi_reporting_mcp",
+      "env": {
+        "APARAVI_HOST": "localhost",
+        "APARAVI_PORT": "80",
+        "APARAVI_API_VERSION": "v3",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

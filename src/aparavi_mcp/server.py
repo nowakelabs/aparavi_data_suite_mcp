@@ -181,9 +181,23 @@ class AparaviMCPServer:
                 result = await self.handle_list_tools(params)
             elif method == "tools/call":
                 result = await self.handle_call_tool(params)
+            elif method == "notifications/initialized":
+                # Handle initialization notification (no response needed)
+                self.logger.debug("Received initialization notification")
+                return None  # No response for notifications
+            elif method == "resources/list":
+                # We don't provide resources, return empty list
+                result = {"resources": []}
+            elif method == "prompts/list":
+                # We don't provide prompts, return empty list
+                result = {"prompts": []}
             else:
                 raise ValueError(f"Unknown method: {method}")
             
+            # Don't send response for notifications
+            if method.startswith("notifications/"):
+                return None
+                
             response = {
                 "jsonrpc": "2.0",
                 "id": request_id,
@@ -231,8 +245,9 @@ class AparaviMCPServer:
                     response = await self.handle_request(request)
                     
                     # Send JSON response to stdout
-                    response_json = json.dumps(response)
-                    print(response_json, flush=True)
+                    if response is not None:
+                        response_json = json.dumps(response)
+                        print(response_json, flush=True)
                     
                 except json.JSONDecodeError as e:
                     self.logger.error(f"Invalid JSON received: {e}")
