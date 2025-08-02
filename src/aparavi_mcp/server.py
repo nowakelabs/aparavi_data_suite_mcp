@@ -135,6 +135,20 @@ class AparaviMCPServer:
                     },
                     "required": ["query"]
                 }
+            },
+            {
+                "name": "execute_custom_aql_query",
+                "description": "Validate and execute a custom AQL query. First validates the query syntax, then executes it if valid. Returns raw JSON results for LLM interpretation.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The AQL query to validate and execute"
+                        }
+                    },
+                    "required": ["query"]
+                }
             }
         ]
         
@@ -158,6 +172,8 @@ class AparaviMCPServer:
                 return await self._handle_run_aparavi_report(arguments)
             elif tool_name == "validate_aql_query":
                 return await self._handle_validate_aql_query(arguments)
+            elif tool_name == "execute_custom_aql_query":
+                return await self._handle_execute_custom_aql_query(arguments)
             else:
                 error_msg = f"Unknown tool: {tool_name}"
                 self.logger.error(error_msg)
@@ -694,6 +710,220 @@ class AparaviMCPServer:
 """
                     }
                 ],
+                "isError": True
+            }
+    
+    async def _handle_execute_custom_aql_query(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle execute_custom_aql_query tool request - validate then execute if valid."""
+        query = arguments.get("query")
+        
+        if not query:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Error: 'query' parameter is required"
+                    }
+                ],
+                "isError": True
+            }
+        
+        if not isinstance(query, str) or not query.strip():
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Error: 'query' must be a non-empty string"
+                    }
+                ],
+                "isError": True
+            }
+        
+        try:
+            self.logger.info(f"Validating and executing AQL query: {query[:100]}...")
+            
+            # Step 1: Validate the query first
+            validation_result = await self.aparavi_client.execute_query(
+                query=query.strip(),
+                format_type="json",
+                use_cache=False,
+                validate_only=True
+            )
+            
+            # Check validation result
+            if isinstance(validation_result, dict):
+                if validation_result.get("status") == "OK" and validation_result.get("data", {}).get("valid") == True:
+                    self.logger.info("AQL query validation successful, proceeding with execution")
+                    
+                    # Step 2: Execute the validated query
+                    execution_result = await self.aparavi_client.execute_query(
+                        query=query.strip(),
+                        format_type="json",
+                        use_cache=False,
+                        validate_only=False
+                    )
+                    
+                    # Return raw JSON results for LLM interpretation
+                    if isinstance(execution_result, dict) and execution_result.get("status") == "OK":
+                        response_text = f"""# AQL Query Execution Result
+
+**Status:** SUCCESS
+
+**Query:**
+```sql
+{query.strip()}
+```
+
+**Raw JSON Results:**
+```json
+{json.dumps(execution_result, indent=2)}
+```
+
+**Note:** The above JSON contains the raw query results for LLM interpretation and analysis."""
+                        
+                        self.logger.info("AQL query executed successfully")
+                        return {
+                            "content": [{
+                                "type": "text",
+                                "text": response_text
+                            }]
+                        }
+                    else:
+                        # Execution failed
+                        error_msg = execution_result.get("message", "Unknown execution error") if isinstance(execution_result, dict) else str(execution_result)
+                        response_text = f"""# AQL Query Execution Result
+
+**Status:** EXECUTION_FAILED
+
+**Query:**
+```sql
+{query.strip()}
+```
+
+**Error:** {error_msg}
+
+**Raw Error Response:**
+```json
+{json.dumps(execution_result, indent=2) if isinstance(execution_result, dict) else str(execution_result)}
+```
+
+**Note:** The query syntax is valid but execution failed. Check the error details above."""
+                        
+                        self.logger.warning(f"AQL query execution failed: {error_msg}")
+                        return {
+                            "content": [{
+                                "type": "text",
+                                "text": response_text
+                            }],
+                            "isError": True
+                        }
+                        
+                elif validation_result.get("status") == "error":
+                    # Validation failed - return validation error
+                    error_msg = validation_result.get("message", "Unknown validation error")
+                    response_text = f"""# AQL Query Execution Result
+
+**Status:** VALIDATION_FAILED
+
+**Query:**
+```sql
+{query.strip()}
+```
+
+**Validation Error:** {error_msg}
+
+**Raw Validation Response:**
+```json
+{json.dumps(validation_result, indent=2)}
+```
+
+**Recommendation:** Please fix the AQL syntax errors before attempting execution."""
+                    
+                    self.logger.warning(f"AQL query validation failed: {error_msg}")
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": response_text
+                        }],
+                        "isError": True
+                    }
+                else:
+                    # Unexpected validation response
+                    status = validation_result.get("status", "unknown")
+                    response_text = f"""# AQL Query Execution Result
+
+**Status:** VALIDATION_ERROR
+
+**Query:**
+```sql
+{query.strip()}
+```
+
+**Error:** Unexpected validation response status: {status}
+
+**Raw Response:**
+```json
+{json.dumps(validation_result, indent=2)}
+```
+
+**Note:** This may indicate an issue with the APARAVI API or server configuration."""
+                    
+                    self.logger.warning(f"Unexpected validation response: {validation_result}")
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": response_text
+                        }],
+                        "isError": True
+                    }
+            else:
+                # Unexpected validation response format
+                response_text = f"""# AQL Query Execution Result
+
+**Status:** VALIDATION_ERROR
+
+**Query:**
+```sql
+{query.strip()}
+```
+
+**Error:** Unexpected response format from validation
+
+**Raw Response:** {str(validation_result)}
+
+**Note:** This may indicate a connection issue with the APARAVI API."""
+                
+                self.logger.warning("Unexpected validation response format")
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": response_text
+                    }],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = f"Failed to validate and execute AQL query: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            
+            response_text = f"""# AQL Query Execution Result
+
+**Status:** ERROR
+
+**Query:**
+```sql
+{query.strip()}
+```
+
+**Error:** {error_msg}
+
+**Note:** This may indicate a connection issue with the APARAVI API or an internal server error."""
+            
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": response_text
+                }],
                 "isError": True
             }
     
