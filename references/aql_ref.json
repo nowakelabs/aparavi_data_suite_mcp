@@ -1,0 +1,836 @@
+{
+    "aql_reference_guide": {
+      "overview": {
+        "description": "Comprehensive AQL reference based on production usage patterns and known limitations",
+        "purpose": "Primary reference for writing reliable AQL queries and troubleshooting syntax issues"
+      },
+  
+      "common_error_patterns_solutions": {
+        "syntax_validation_failures": [
+          {
+            "error_type": "DISTINCT usage",
+            "wrong_example": "SELECT DISTINCT extension FROM STORE('/') WHERE ClassID = 'idxobject'",
+            "correct_example": "SELECT extension FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY extension",
+            "description": "DISTINCT will fail validation - use GROUP BY instead"
+          },
+          {
+            "error_type": "DATEADD usage",
+            "wrong_example": "WHERE createTime > DATEADD(day, -30, NOW())",
+            "correct_example": "WHERE (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60)",
+            "description": "DATEADD not supported - use time arithmetic"
+          }
+        ],
+        "null_handling_issues": [
+          {
+            "problem": "May include unexpected nulls in classification filtering",
+            "problematic_example": "WHERE classification != 'Unclassified'",
+            "safer_example": "WHERE classification IS NOT NULL AND classification != 'Unclassified'",
+            "description": "Always explicitly handle NULL values"
+          }
+        ],
+        "metadata_query_mistakes": [
+          {
+            "error_type": "JSON parsing attempts",
+            "wrong_example": "WHERE JSON_EXTRACT(metadata, '$.Author') = 'John'",
+            "correct_example": "WHERE metadata LIKE '%\"Author\":\"John\"%'",
+            "description": "Use string pattern matching instead of JSON functions"
+          }
+        ]
+      },
+  
+      "pre_deployment_testing_checklist": {
+        "syntax_validation": [
+          "Query validates successfully via API with 'validate': true",
+          "No DATEADD functions used",
+          "No DISTINCT keywords used", 
+          "All time calculations use cast(NOW() as number) pattern"
+        ],
+        "data_integrity_checks": [
+          "GROUP BY used instead of DISTINCT for deduplication",
+          "Classification filters handle 'Unclassified' properly",
+          "NULL values handled with COALESCE or CASE statements",
+          "Size calculations use correct divisors (1073741824 for GB, 1048576 for MB)"
+        ],
+        "performance_verification": [
+          "WHERE clause includes ClassID = 'idxobject'",
+          "Complex CASE statements optimized",
+          "Result set size reasonable for intended use"
+        ]
+      },
+  
+      "reference_templates": {
+        "standard_query_template": {
+          "template": "SELECT COMPONENTS(parentPath, 3) AS \"Data Source\", COUNT(name) AS \"File Count\", SUM(size)/1073741824 AS \"Size (GB)\" FROM STORE('/') WHERE ClassID = 'idxobject' -- Add specific filters here GROUP BY COMPONENTS(parentPath, 3) ORDER BY \"Size (GB)\" DESC",
+          "description": "Basic template with data source analysis",
+          "customization_points": [
+            "Replace field selections as needed",
+            "Add specific WHERE conditions",
+            "Modify GROUP BY clause",
+            "Adjust ORDER BY for different sorting"
+          ]
+        },
+        "time_range_analysis_template": {
+          "template": "SELECT CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 'Recent' WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 'Older' ELSE 'Very Old' END AS \"Age Category\", COUNT(*) AS \"Count\", SUM(size)/1073741824 AS \"Size (GB)\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 'Recent' WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 'Older' ELSE 'Very Old' END",
+          "description": "Template for age-based file analysis",
+          "customization_points": [
+            "Adjust time ranges in seconds",
+            "Change age category labels",
+            "Add additional time fields (accessTime, modifyTime)",
+            "Include additional aggregations"
+          ]
+        },
+        "optimization_template": {
+          "template": "SET @@DEFAULT_COLUMNS=createTime,name,size,ClassID; SELECT YEAR(createTime) as \"Creation Year\", COUNT(name) as \"File Count\" WHERE ClassID LIKE 'idxobject' GROUP BY YEAR(createTime);",
+          "description": "Performance-optimized template with default columns",
+          "usage_notes": [
+            "Use SET @@DEFAULT_COLUMNS for better performance",
+            "Specify only needed columns in the default set",
+            "Follow with actual query"
+          ]
+        }
+      },
+  
+      "iterative_development_process": {
+        "steps": [
+          {
+            "step": 1,
+            "action": "Write query using proven patterns from this guide",
+            "details": "Start with templates and modify for specific needs"
+          },
+          {
+            "step": 2,
+            "action": "Validate syntax via API endpoint with validate: true",
+            "details": "Use validation endpoint to catch syntax errors before execution"
+          },
+          {
+            "step": 3,
+            "action": "Fix syntax errors based on API response",
+            "details": "Apply workarounds from this guide for common issues"
+          },
+          {
+            "step": 4,
+            "action": "Test with small result set using LIMIT clause",
+            "details": "Verify query logic with limited results first"
+          },
+          {
+            "step": 5,
+            "action": "Deploy full query once validated",
+            "details": "Remove LIMIT and run full query after validation"
+          }
+        ],
+        "validation_workflow": {
+          "api_call": "GET /server/api/v3/database/query?select=YOUR_URL_ENCODED_QUERY&options={\"format\":\"json\",\"stream\":true,\"validate\":true}",
+          "expected_response": "Validation status and syntax errors (if any)",
+          "iteration_approach": "Fix errors using documented workarounds and re-validate"
+        }
+      },
+  
+      "version_history": {
+        "latest_update": {
+          "version": "Comprehensive AQL Reference Integration", 
+          "changes": [
+            "Added complete field reference table with all Aparavi API columns",
+            "Added AQL vs SQL differences highlighting non-standard syntax",
+            "Added metadata field patterns with working LIKE examples",
+            "Added natural language translation examples for common business questions",
+            "Added size conversion reference with byte thresholds and formulas",
+            "Added error pattern troubleshooting with wrong/correct examples",
+            "Added API endpoint details with complete parameter reference",
+            "Enhanced query templates with AQL-specific syntax",
+            "Added SET @@DEFAULT_COLUMNS optimization patterns"
+          ]
+        },
+        "previous_updates": [
+          "Added comprehensive working time patterns",
+          "Added metadata query examples",
+          "Added classification handling specifics", 
+          "Added API validation workflow",
+          "Added reference pattern library",
+          "Documented all known limitations with workarounds"
+        ]
+      },
+  
+      "usage_notes": {
+        "target_audience": "LLM query generation systems",
+        "purpose": "Complete AQL reference for generating syntactically correct and functionally reliable queries",
+        "maintenance": "Update as new patterns are discovered and tested in production",
+        "validation_requirement": "All patterns included have been validated in production Aparavi environments"
+      }
+    }
+  },
+  
+      "aparavi_api_integration": {
+        "endpoint_configuration": {
+          "base_url": "http://localhost/server/api/v3/database/query",
+          "method": "GET",
+          "authentication": "HTTP Basic Auth (base64(username:password))"
+        },
+        "query_parameters": [
+          {
+            "parameter": "select",
+            "description": "URL-encoded AQL query string",
+            "required": true
+          },
+          {
+            "parameter": "options",
+            "description": "JSON string with execution options",
+            "required": true
+          }
+        ],
+        "options_object": {
+          "format": {
+            "description": "Response format",
+            "valid_values": ["csv", "json"],
+            "default": "json"
+          },
+          "stream": {
+            "description": "Stream large results",
+            "valid_values": [true, false],
+            "default": true
+          },
+          "validate": {
+            "description": "Syntax validation only (no execution)",
+            "valid_values": [true, false],
+            "default": false,
+            "usage": "Set to true for syntax checking without data return"
+          }
+        },
+        "complete_api_examples": [
+          {
+            "purpose": "Syntax validation (no data returned)",
+            "url": "GET /server/api/v3/database/query?select=SELECT%20extension%2C%20COUNT(*)%20WHERE%20ClassID%20%3D%20%27idxobject%27%20GROUP%20BY%20extension&options={\"format\":\"json\",\"stream\":true,\"validate\":true}"
+          },
+          {
+            "purpose": "Execute query for results",
+            "url": "GET /server/api/v3/database/query?select=SELECT%20extension%2C%20COUNT(*)%20WHERE%20ClassID%20%3D%20%27idxobject%27%20GROUP%20BY%20extension&options={\"format\":\"json\",\"stream\":true,\"validate\":false}"
+          }
+        ],
+        "required_headers": [
+          "Authorization: Basic base64(username:password)",
+          "Content-Type: application/json"
+        ]
+      },
+  
+      "natural_language_translation_examples": [
+        {
+          "natural_language": "My data is growing 200GB per week and I don't know why",
+          "query_type": "growth_analysis",
+          "aql_query": "SELECT YEAR(createTime) AS \"Year\", WEEK(createTime) AS \"Week\", extension AS \"File Type\", COUNT(*) AS \"Files Created\", SUM(size)/1073741824 AS \"Size Added (GB)\" WHERE createTime >= '2024-01-01' AND ClassID = 'idxobject' GROUP BY YEAR(createTime), WEEK(createTime), extension ORDER BY \"Year\", \"Week\", \"Size Added (GB)\" DESC",
+          "explanation": "Analyzes file creation patterns by week and type to identify growth sources"
+        },
+        {
+          "natural_language": "Show me storage waste from duplicate files",
+          "query_type": "duplicate_analysis", 
+          "aql_query": "SELECT SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS \"Files with Duplicates\", SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END) AS \"Duplicate Instances\", SUM(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1073741824 AS \"Potential Space Savings (GB)\" FROM STORE('/') WHERE dupCount > 1 AND ClassID = 'idxobject'",
+          "explanation": "Calculates duplicate file counts and potential space savings"
+        },
+        {
+          "natural_language": "Find Excel files with macros by department",
+          "query_type": "security_analysis",
+          "aql_query": "SELECT COMPONENTS(parentPath, 3) AS \"Department\", COUNT(*) AS \"Files with Macros\", SUM(size)/1048576 AS \"Total Size (MB)\" FROM STORE('/') WHERE ClassID = 'idxobject' AND extension = 'xlsx' AND metadata LIKE '%\"containVBA\":\"true\"%' GROUP BY COMPONENTS(parentPath, 3) ORDER BY \"Files with Macros\" DESC",
+          "explanation": "Identifies Excel files with VBA macros grouped by organizational unit"
+        }
+      ],
+  
+      "translation_patterns": [
+        {
+          "phrase": "Show me...",
+          "aql_equivalent": "SELECT with appropriate aggregations"
+        },
+        {
+          "phrase": "By department/location",
+          "aql_equivalent": "COMPONENTS(parentPath, N) and GROUP BY"
+        },
+        {
+          "phrase": "Large files",
+          "aql_equivalent": "WHERE size > [threshold_in_bytes]"
+        },
+        {
+          "phrase": "Recent files",
+          "aql_equivalent": "WHERE (cast(NOW() as number) - createTime) < [seconds]"
+        },
+        {
+          "phrase": "Duplicates",
+          "aql_equivalent": "WHERE dupCount > 1"
+        },
+        {
+          "phrase": "Sensitive data",
+          "aql_equivalent": "WHERE classifications NOT LIKE '%Unclassified%'"
+        }
+      ],
+  
+      "size_conversion_reference": {
+        "standard_size_thresholds_bytes": {
+          "1_mb": 1048576,
+          "10_mb": 10485760,
+          "100_mb": 104857600,
+          "1_gb": 1073741824,
+          "10_gb": 10737418240
+        },
+        "common_size_filters": [
+          {
+            "description": "Files > 100MB",
+            "pattern": "WHERE size > 104857600"
+          },
+          {
+            "description": "Files 1MB-100MB",
+            "pattern": "WHERE size BETWEEN 1048576 AND 104857600"
+          },
+          {
+            "description": "Files < 1MB",
+            "pattern": "WHERE size < 1048576"
+          }
+        ],
+        "size_conversion_formulas": [
+          {
+            "unit": "KB",
+            "formula": "size/1024 AS \"Size (KB)\""
+          },
+          {
+            "unit": "MB",
+            "formula": "size/1048576 AS \"Size (MB)\"",
+            "note": "Most common"
+          },
+          {
+            "unit": "GB", 
+            "formula": "size/1073741824 AS \"Size (GB)\"",
+            "note": "Most common"
+          }
+        ],
+        "aggregation_examples": [
+          "SUM(size)/1073741824 AS \"Total (GB)\"",
+          "AVG(size)/1048576 AS \"Average (MB)\"",
+          "MAX(size)/1048576 AS \"Largest (MB)\""
+        ]
+      },
+  
+      "proven_working_patterns": {
+        "time_implementation": {
+          "current_time_as_number": {
+            "pattern": "cast(NOW() as number)",
+            "description": "Gets current time as Unix timestamp style number for arithmetic"
+          },
+          "time_range_calculations": [
+            {
+              "description": "Last 30 days",
+              "pattern": "WHERE (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60)",
+              "calculation": "30 days * 24 hours * 60 minutes * 60 seconds"
+            },
+            {
+              "description": "Last year",
+              "pattern": "WHERE (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60)",
+              "calculation": "365 days * 24 hours * 60 minutes * 60 seconds"
+            },
+            {
+              "description": "Between 1-2 years old",
+              "pattern": "WHERE (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60)",
+              "calculation": "365 to 730 days in seconds"
+            }
+          ],
+          "age_range_case_statements": {
+            "pattern": "CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 'Under 1 Year' WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN '1-2 Years' ELSE 'Over 2 Years' END",
+            "description": "Categorize files by age ranges using time arithmetic"
+          },
+          "working_date_functions": [
+            "YEAR(createTime)",
+            "MONTH(createTime)", 
+            "WEEK(createTime)"
+          ],
+          "direct_date_comparisons": [
+            "WHERE createTime >= '2024-01-01'",
+            "WHERE modifyTime BETWEEN '2024-01-01' AND '2024-12-31'"
+          ]
+        },
+        "aql_specific_optimization": {
+          "default_columns": {
+            "pattern": "SET @@DEFAULT_COLUMNS=createTime,name,size,ClassID;",
+            "description": "Set default columns for better performance (AQL specific)",
+            "usage": "Use before SELECT statement for optimization"
+          }
+        },
+        "essential_query_structure": {
+          "standard_template": "SELECT column1 AS \"Display Name\", SUM(size)/1073741824 AS \"Size (GB)\" FROM STORE('/') WHERE ClassID = 'idxobject' AND additional_conditions GROUP BY column1 ORDER BY \"Size (GB)\" DESC LIMIT 50;",
+          "required_elements": [
+            "FROM STORE('/') - AQL data source function",
+            "WHERE ClassID = 'idxobject' - Always filter by object type",
+            "Use aliases for readability",
+            "Consider LIMIT for large datasets"
+          ],
+          "size_conversions": [
+            "SUM(size)/1073741824 AS \"Size (GB)\" - Bytes to GB",
+            "SUM(size)/1048576 AS \"Size (MB)\" - Bytes to MB", 
+            "AVG(size)/1048576 AS \"Avg Size (MB)\" - Average in MB"
+          ]
+        }
+      },
+  
+      "common_workarounds": {
+        "data_deduplication": {
+          "reliable_method": "SELECT column1, column2, column3 FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY column1, column2, column3",
+          "description": "Use GROUP BY instead of DISTINCT for reliable deduplication"
+        },
+        "null_value_handling": [
+          {
+            "technique": "COALESCE for NULL handling",
+            "pattern": "COALESCE(CATEGORY, 'Uncategorized') AS \"Category\"",
+            "use_case": "Handle NULL category values"
+          },
+          {
+            "technique": "CASE statement for classification",
+            "pattern": "CASE WHEN classification IS NULL THEN 'Unclassified' WHEN classification = '' THEN 'Unclassified' ELSE classification END AS \"Classification\"",
+            "use_case": "Handle NULL/empty classifications"
+          }
+        ],
+        "classification_filtering": [
+          {
+            "description": "Handle Unclassified labels properly",
+            "pattern": "WHERE classification IS NOT NULL AND classification != 'Unclassified'",
+            "alternative": "WHERE classifications NOT LIKE '%Unclassified%'"
+          },
+          {
+            "description": "Classification patterns that work",
+            "patterns": [
+              "WHERE classifications LIKE '%Sensitive%'",
+              "WHERE classification = 'PII'"
+            ]
+          }
+        ],
+        "complex_aggregations": [
+          {
+            "technique": "Conditional counting with CASE",
+            "pattern": "SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS \"Large Files\"",
+            "description": "Count files meeting specific conditions"
+          },
+          {
+            "technique": "Duplicate instance calculation",
+            "pattern": "SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END) AS \"Duplicate Instances\"",
+            "description": "Calculate total duplicate instances"
+          },
+          {
+            "technique": "Age-based size aggregation",
+            "pattern": "SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Stale Data (GB)\"",
+            "description": "Sum sizes for files meeting age criteria"
+          }
+        ],
+        "duplicate_analysis": [
+          {
+            "description": "Standard duplicate detection",
+            "pattern": "WHERE dupCount > 1"
+          },
+          {
+            "description": "Calculate duplicate waste",
+            "pattern": "SUM(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1073741824 AS \"Waste (GB)\""
+          },
+          {
+            "description": "Duplicate severity analysis",
+            "patterns": [
+              "SUM(CASE WHEN dupCount = 2 THEN 1 ELSE 0 END) AS \"Files with 2 Copies\"",
+              "SUM(CASE WHEN dupCount > 10 THEN 1 ELSE 0 END) AS \"Files with 10+ Copies\""
+            ]
+          }
+        ]
+      },
+      
+      "known_issues_limitations": {
+        "date_time_functions": {
+          "dateadd_function": {
+            "status": "NOT_SUPPORTED",
+            "description": "DATEADD function will cause syntax validation failures",
+            "alternative": "Use time arithmetic with cast(NOW() as number) and seconds",
+            "example_wrong": "WHERE createTime > DATEADD(day, -30, NOW())",
+            "example_correct": "WHERE (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60)"
+          }
+        },
+        "aggregation_functions": {
+          "distinct_keyword": {
+            "status": "UNRELIABLE",
+            "description": "DISTINCT keyword is unreliable or non-functional - results may include duplicates",
+            "workaround": "Always use GROUP BY for deduplication",
+            "example_wrong": "SELECT DISTINCT column1, column2 FROM STORE('/')",
+            "example_correct": "SELECT column1, column2 FROM STORE('/') GROUP BY column1, column2"
+          }
+        },
+        "metadata_handling": {
+          "json_functions": {
+            "status": "NOT_SUPPORTED",
+            "description": "No support for JSON_EXTRACT(), CAST() from metadata, or JSON parsing",
+            "limitation": "Cannot parse metadata as JSON objects",
+            "workaround": "Use metadata LIKE '%\"key\":\"value\"%' for filtering",
+            "unsupported_functions": [
+              "JSON_EXTRACT()",
+              "JSON_VALUE()",
+              "CAST() from metadata",
+              "SUBSTRING() on metadata",
+              "metadataObject.field notation"
+            ],
+  
+      "aql_vs_standard_sql": {
+        "aql_specific_syntax": [
+          {
+            "feature": "Data source function",
+            "aql_syntax": "FROM STORE('/')",
+            "standard_sql_equivalent": "FROM table_name",
+            "description": "AQL uses STORE function instead of table names"
+          },
+          {
+            "feature": "Path component extraction",
+            "aql_syntax": "COMPONENTS(parentPath, 3)",
+            "standard_sql_equivalent": "No direct equivalent",
+            "description": "Extract specific levels from file path hierarchy"
+          },
+          {
+            "feature": "Default column setting",
+            "aql_syntax": "SET @@DEFAULT_COLUMNS=createTime,name,size,ClassID;",
+            "standard_sql_equivalent": "No equivalent",
+            "description": "Performance optimization for AQL queries"
+          },
+          {
+            "feature": "Time as number casting",
+            "aql_syntax": "cast(NOW() as number)",
+            "standard_sql_equivalent": "UNIX_TIMESTAMP(NOW())",
+            "description": "Gets current time as Unix timestamp for arithmetic"
+          }
+        ],
+        "unsupported_standard_sql": [
+          {
+            "feature": "Date arithmetic functions",
+            "example": "DATEADD(day, 30, createTime)",
+            "status": "NOT_SUPPORTED",
+            "alternative": "Use time arithmetic with cast(NOW() as number)"
+          },
+          {
+            "feature": "DISTINCT keyword",
+            "example": "DISTINCT column1, column2",
+            "status": "UNRELIABLE",
+            "alternative": "Use GROUP BY instead"
+          },
+          {
+            "feature": "JSON functions",
+            "example": "JSON_EXTRACT(metadata, '$.Author')",
+            "status": "NOT_SUPPORTED",
+            "alternative": "Use LIKE patterns instead"
+          },
+          {
+            "feature": "String manipulation",
+            "example": "SUBSTRING(metadata, 1, 10)",
+            "status": "LIMITED",
+            "alternative": "Limited string functions available"
+          },
+          {
+            "feature": "JSON field casting",
+            "example": "CAST(metadata_field AS INTEGER)",
+            "status": "NOT_SUPPORTED",
+            "alternative": "Use heuristic LIKE patterns for numeric ranges"
+          }
+        ]
+      },
+  
+      "metadata_field_patterns": [
+        {
+          "field_key": "containVBA",
+          "description": "Excel files with macros",
+          "working_pattern": "metadata LIKE '%\"containVBA\":\"true\"%'",
+          "use_case": "Security analysis",
+          "data_type": "boolean"
+        },
+        {
+          "field_key": "Author",
+          "description": "Document author",
+          "working_pattern": "metadata LIKE '%\"Author\":\"Jane Doe\"%'",
+          "use_case": "Ownership tracking",
+          "data_type": "string"
+        },
+        {
+          "field_key": "Page-Count",
+          "description": "Number of pages",
+          "working_pattern": "metadata LIKE '%\"Page-Count\":%'",
+          "use_case": "Document analysis",
+          "data_type": "number"
+        },
+        {
+          "field_key": "Word-Count",
+          "description": "Word total",
+          "working_pattern": "metadata LIKE '%\"Word-Count\":%'",
+          "use_case": "Content size",
+          "data_type": "number"
+        },
+        {
+          "field_key": "Image-Width",
+          "description": "Image width pixels",
+          "working_pattern": "metadata LIKE '%\"Image-Width\":%'",
+          "use_case": "Image analysis",
+          "data_type": "number"
+        },
+        {
+          "field_key": "Image-Height",
+          "description": "Image height pixels",
+          "working_pattern": "metadata LIKE '%\"Image-Height\":%'",
+          "use_case": "Resolution checks",
+          "data_type": "number"
+        },
+        {
+          "field_key": "xmpDM:duration",
+          "description": "Video/audio duration",
+          "working_pattern": "metadata LIKE '%\"xmpDM:duration\":%'",
+          "use_case": "Media analysis",
+          "data_type": "string"
+        },
+        {
+          "field_key": "geo:lat",
+          "description": "GPS latitude",
+          "working_pattern": "metadata LIKE '%\"geo:lat\":%'",
+          "use_case": "Location data",
+          "data_type": "number"
+        },
+        {
+          "field_key": "geo:long",
+          "description": "GPS longitude",
+          "working_pattern": "metadata LIKE '%\"geo:long\":%'",
+          "use_case": "Location data",
+          "data_type": "number"
+        },
+        {
+          "field_key": "Message-From",
+          "description": "Email sender",
+          "working_pattern": "metadata LIKE '%\"Message-From\":\"john@example.com\"%'",
+          "use_case": "Email analysis",
+          "data_type": "string"
+        },
+        {
+          "field_key": "Message-To",
+          "description": "Email recipient",
+          "working_pattern": "metadata LIKE '%\"Message-To\":\"jane@example.com\"%'",
+          "use_case": "Email analysis",
+          "data_type": "string"
+        }
+      ],
+  
+      "metadata_limitations": {
+        "critical_warning": "AQL cannot extract or cast values from metadata. Use only metadata LIKE '%pattern%' for filtering.",
+        "numeric_range_workaround": "For numeric ranges, use heuristic patterns like metadata LIKE '%:03%' OR metadata LIKE '%:04%' to simulate range checking.",
+        "unsupported_operations": [
+          "metadataObject.containVBA = true",
+          "JSON_VALUE(metadata, '$.Author')",
+          "CAST(JSON_EXTRACT(metadata, '$.pageCount') AS INT)"
+        ]
+      }
+          }
+        }
+      },
+  
+      "core_fields_reference": [
+        {
+          "field": "name",
+          "description": "File name",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "WHERE name LIKE '%.pdf'",
+          "common_patterns": ["name LIKE '%.ext'", "name = 'filename.txt'"]
+        },
+        {
+          "field": "path",
+          "description": "Full file path",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "SELECT path",
+          "common_patterns": ["path LIKE '%folder%'"]
+        },
+        {
+          "field": "parentPath",
+          "description": "Directory path (Aparavi virtual)",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "COMPONENTS(parentPath, 3)",
+          "common_patterns": ["COMPONENTS(parentPath, N)"]
+        },
+        {
+          "field": "localPath",
+          "description": "Actual file system path",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "SELECT localPath",
+          "common_patterns": ["localPath LIKE 'C:\\%'"]
+        },
+        {
+          "field": "size",
+          "description": "Size in bytes",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "number",
+          "example_usage": "WHERE size > 104857600",
+          "common_patterns": [
+            "size > 104857600",
+            "SUM(size)/1073741824 AS \"Size (GB)\"",
+            "AVG(size)/1048576 AS \"Avg Size (MB)\""
+          ]
+        },
+        {
+          "field": "accessTime",
+          "description": "Last accessed time",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "timestamp",
+          "example_usage": "WHERE (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60)",
+          "common_patterns": [
+            "(cast(NOW() as number) - accessTime) < seconds",
+            "ORDER BY accessTime DESC"
+          ]
+        },
+        {
+          "field": "createTime",
+          "description": "Created time",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "timestamp",
+          "example_usage": "WHERE createTime >= '2024-01-01'",
+          "common_patterns": [
+            "createTime >= 'YYYY-MM-DD'",
+            "YEAR(createTime)",
+            "MONTH(createTime)",
+            "WEEK(createTime)"
+          ]
+        },
+        {
+          "field": "modifyTime",
+          "description": "Last modified time",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "timestamp",
+          "example_usage": "ORDER BY modifyTime DESC",
+          "common_patterns": [
+            "(cast(NOW() as number) - modifyTime) < seconds",
+            "ORDER BY modifyTime DESC"
+          ]
+        },
+        {
+          "field": "extension",
+          "description": "File extension",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "WHERE extension = 'pdf'",
+          "common_patterns": [
+            "extension = 'pdf'",
+            "extension IN ('doc', 'docx', 'pdf')",
+            "GROUP BY extension"
+          ]
+        },
+        {
+          "field": "osOwner",
+          "description": "OS-level file owner",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "GROUP BY osOwner",
+          "common_patterns": [
+            "osOwner = 'username'",
+            "osOwner IS NOT NULL",
+            "GROUP BY osOwner"
+          ]
+        },
+        {
+          "field": "osPermission",
+          "description": "File permissions",
+          "usage_context": "SELECT/WHERE", 
+          "data_type": "string",
+          "example_usage": "WHERE osPermission IS NOT NULL",
+          "common_patterns": [
+            "osPermission IS NOT NULL",
+            "GROUP BY osPermission"
+          ]
+        },
+        {
+          "field": "classification",
+          "description": "Primary classification",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "WHERE classification = 'PII'",
+          "common_patterns": [
+            "classification = 'PII'",
+            "classification IS NOT NULL",
+            "classification != 'Unclassified'"
+          ]
+        },
+        {
+          "field": "classifications",
+          "description": "All matching classifications",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "WHERE classifications LIKE '%Sensitive%'",
+          "common_patterns": [
+            "classifications LIKE '%Sensitive%'",
+            "classifications NOT LIKE '%Unclassified%'"
+          ]
+        },
+        {
+          "field": "confidence",
+          "description": "Classification confidence score",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "number",
+          "example_usage": "WHERE confidence > 0.8",
+          "common_patterns": [
+            "confidence > 0.8",
+            "AVG(confidence)"
+          ]
+        },
+        {
+          "field": "dupCount",
+          "description": "Number of duplicate files",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "number",
+          "example_usage": "WHERE dupCount > 1",
+          "common_patterns": [
+            "dupCount > 1",
+            "SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END)"
+          ]
+        },
+        {
+          "field": "dupKey",
+          "description": "File content hash signature",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "GROUP BY dupKey",
+          "common_patterns": [
+            "GROUP BY dupKey",
+            "dupKey IS NOT NULL"
+          ]
+        },
+        {
+          "field": "metadata",
+          "description": "Metadata string (LIKE filtering only)",
+          "usage_context": "WHERE",
+          "data_type": "string",
+          "example_usage": "WHERE metadata LIKE '%\"Author\":\"John\"%'",
+          "common_patterns": [
+            "metadata LIKE '%\"key\":\"value\"%'",
+            "metadata LIKE '%\"field\":%'"
+          ]
+        },
+        {
+          "field": "metadataObject",
+          "description": "Structured metadata (SELECT only)",
+          "usage_context": "SELECT",
+          "data_type": "object",
+          "example_usage": "SELECT metadataObject",
+          "common_patterns": [
+            "SELECT metadataObject"
+          ]
+        },
+        {
+          "field": "CATEGORY",
+          "description": "Aparavi categorization",
+          "usage_context": "SELECT/WHERE",
+          "data_type": "string",
+          "example_usage": "WHERE CATEGORY IS NOT NULL",
+          "common_patterns": [
+            "CATEGORY IS NOT NULL",
+            "COALESCE(CATEGORY, 'Uncategorized')",
+            "GROUP BY CATEGORY"
+          ]
+        },
+        {
+          "field": "ClassID",
+          "description": "Object type identifier",
+          "usage_context": "WHERE",
+          "data_type": "string",
+          "example_usage": "WHERE ClassID = 'idxobject'",
+          "common_patterns": [
+            "ClassID = 'idxobject'",
+            "ClassID LIKE 'idxobject'"
+          ]
+        }
+      ]

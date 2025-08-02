@@ -7,7 +7,7 @@ Provides tools for executing predefined AQL reports and managing data queries.
 
 __version__ = "1.0.0"
 __author__ = "Aparavi Team"
-__email__ = "hello@nowakelabs.com"
+__email__ = "support@aparavi.com"
 
 # Import main server class
 from .server import AparaviMCPServer, main
