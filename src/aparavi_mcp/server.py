@@ -74,6 +74,33 @@ class AparaviMCPServer:
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "data_sources_overview",
+                "description": "Get comprehensive analysis of data sources including size, activity indicators, and file categorization metrics",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "subfolder_overview",
+                "description": "Analyze subfolder structure showing size and file count distribution across deeper directory levels",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "file_type_extension_summary",
+                "description": "Comprehensive analysis of file types including size metrics, distribution, and file size ranges by extension",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
         
@@ -92,6 +119,12 @@ class AparaviMCPServer:
                 return await self._handle_health_check()
             elif tool_name == "server_info":
                 return await self._handle_server_info()
+            elif tool_name == "data_sources_overview":
+                return await self._handle_data_sources_overview()
+            elif tool_name == "subfolder_overview":
+                return await self._handle_subfolder_overview()
+            elif tool_name == "file_type_extension_summary":
+                return await self._handle_file_type_extension_summary()
             else:
                 error_msg = f"Unknown tool: {tool_name}"
                 self.logger.error(error_msg)
@@ -171,6 +204,183 @@ class AparaviMCPServer:
             
         except Exception as e:
             error_msg = f"Failed to get server info: {format_error_message(e)}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+    
+    async def _handle_data_sources_overview(self) -> Dict[str, Any]:
+        """Handle data sources overview report requests."""
+        self.logger.debug("Generating data sources overview report")
+        
+        try:
+            # AQL query for comprehensive data sources analysis
+            aql_query = """
+SELECT
+ COMPONENTS(parentPath, 3) AS "Data Source",
+ SUM(size)/1073741824 AS "Total Size (GB)",
+ COUNT(name) AS "File Count",
+ AVG(size)/1048576 AS "Average File Size (MB)",
+ 
+ -- Recent activity indicators
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Files Created Last 30 Days",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Stale Files (>1 Year)",
+ 
+ -- Size categories
+ SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS "Large Files (>1GB)",
+ 
+ -- Duplicates
+ SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates"
+
+FROM 
+ STORE('/')
+WHERE 
+ ClassID = 'idxobject'
+GROUP BY 
+ COMPONENTS(parentPath, 3)
+ORDER BY 
+ "Total Size (GB)" DESC
+""".strip()
+            
+            self.logger.info("Executing data sources overview query")
+            
+            # Execute the AQL query
+            result = await self.aparavi_client.execute_query(aql_query, format_type="json")
+            
+            if isinstance(result, dict) and result.get("status") == "OK":
+                # Return raw JSON response for the agent to interpret
+                import json
+                json_response = json.dumps(result, indent=2)
+                self.logger.info(f"Data sources overview query executed successfully")
+                
+                return {
+                    "content": [{"type": "text", "text": f"# APARAVI Data Sources Overview\n\nRaw JSON Response:\n```json\n{json_response}\n```"}]
+                }
+                
+            else:
+                # Handle error response
+                error_msg = "Failed to generate data sources overview report"
+                if isinstance(result, str):
+                    error_msg += f": {result}"
+                elif isinstance(result, dict):
+                    error_msg += f": {result.get('message', 'Unknown error')}"
+                
+                self.logger.error(error_msg)
+                return {
+                    "content": [{"type": "text", "text": error_msg}],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = f"Error generating data sources overview: {format_error_message(e)}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+
+    async def _handle_subfolder_overview(self) -> Dict[str, Any]:
+        """Handle subfolder overview tool request."""
+        try:
+            self.logger.info("Generating subfolder overview report")
+            
+            # AQL query for subfolder analysis - EXACT from reference documentation
+            aql_query = """
+SELECT    
+  COMPONENTS(parentPath, 7) AS Subfolder,
+  SUM(size) as "Size",
+  COUNT(name) as "Count"
+WHERE ClassID LIKE 'idxobject'
+GROUP BY Subfolder
+ORDER BY SUM(size) DESC
+"""
+            
+            # Execute the AQL query
+            result = await self.aparavi_client.execute_query(aql_query, format_type="json")
+            
+            if isinstance(result, dict) and result.get("status") == "OK":
+                # Return raw JSON response for the agent to interpret
+                import json
+                json_response = json.dumps(result, indent=2)
+                self.logger.info(f"Subfolder overview query executed successfully")
+                
+                return {
+                    "content": [{"type": "text", "text": f"# APARAVI Subfolder Overview\n\nRaw JSON Response:\n```json\n{json_response}\n```"}]
+                }
+            else:
+                # Handle error response
+                error_msg = f"Failed to execute subfolder overview query. Response: {result}"
+                self.logger.error(error_msg)
+                return {
+                    "content": [{"type": "text", "text": error_msg}],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = f"Error generating subfolder overview: {format_error_message(e)}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+
+    async def _handle_file_type_extension_summary(self) -> Dict[str, Any]:
+        """Handle file type extension summary tool request."""
+        try:
+            self.logger.info("Generating file type extension summary report")
+            
+            # AQL query for file type/extension analysis - EXACT from reference documentation
+            aql_query = """
+SELECT
+ CASE
+   WHEN extension IS NULL THEN 'No Extension'
+   WHEN extension = '' THEN 'No Extension'
+   ELSE extension
+ END AS "File Type",
+ COUNT(name) AS "File Count",
+ SUM(size) AS "Total Size (Bytes)",
+ SUM(size)/1048576 AS "Total Size (MB)",
+ AVG(size)/1048576 AS "Average File Size (MB)",
+ MIN(size)/1048576 AS "Smallest File (MB)",
+ MAX(size)/1048576 AS "Largest File (MB)"
+FROM 
+ STORE('/')
+WHERE
+ ClassID = 'idxobject'
+GROUP BY
+ CASE
+   WHEN extension IS NULL THEN 'No Extension'
+   WHEN extension = '' THEN 'No Extension'
+   ELSE extension
+ END
+ORDER BY
+ SUM(size) DESC
+"""
+            
+            # Execute the AQL query
+            result = await self.aparavi_client.execute_query(aql_query, format_type="json")
+            
+            if isinstance(result, dict) and result.get("status") == "OK":
+                # Return raw JSON response for the agent to interpret
+                import json
+                json_response = json.dumps(result, indent=2)
+                self.logger.info(f"File type extension summary query executed successfully")
+                
+                return {
+                    "content": [{"type": "text", "text": f"# APARAVI File Type / Extension Summary\n\nRaw JSON Response:\n```json\n{json_response}\n```"}]
+                }
+            else:
+                # Handle error response
+                error_msg = f"Failed to execute file type extension summary query. Response: {result}"
+                self.logger.error(error_msg)
+                return {
+                    "content": [{"type": "text", "text": error_msg}],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = f"Error generating file type extension summary: {format_error_message(e)}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],

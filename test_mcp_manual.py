@@ -121,66 +121,67 @@ def test_mcp_server():
             for tool in tools:
                 print(f"   - {tool['name']}: {tool['description']}")
         else:
-            print("ERROR: List tools failed")
+            print("ERROR: Failed to list tools")
             if response:
                 print(f"   Response: {response}")
             return
         
-        # Test 3: Call health_check tool
-        print("\nTEST 3: Call health_check tool")
-        health_check_request = {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {
-                "name": "health_check",
-                "arguments": {}
+        # Test all discovered tools dynamically
+        for i, tool in enumerate(tools, 3):  # Start from test 3
+            tool_name = tool['name']
+            print(f"\nTEST {i}: Call {tool_name} tool")
+            
+            tool_request = {
+                "jsonrpc": "2.0",
+                "id": i,
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": {}
+                }
             }
-        }
-        
-        response = send_mcp_request(process, health_check_request)
-        if response and "result" in response:
-            content = response["result"].get("content", [])
-            if content:
-                result_text = content[0].get('text', 'No text')
-                # Determine if this is actually a success or failure based on content
-                if "SUCCESS:" in result_text:
-                    print(f"SUCCESS: {result_text}")
-                elif "WARNING:" in result_text or "ERROR:" in result_text:
-                    print(f"HEALTH CHECK ISSUE: {result_text}")
+            
+            response = send_mcp_request(process, tool_request)
+            if response and "result" in response:
+                content = response["result"].get("content", [])
+                if content:
+                    result_text = content[0].get('text', 'No text')
+                    
+                    # Handle different tool types with appropriate output
+                    if tool_name == "health_check":
+                        # Special handling for health check
+                        if "SUCCESS:" in result_text:
+                            print(f"SUCCESS: {result_text}")
+                        elif "WARNING:" in result_text or "ERROR:" in result_text:
+                            print(f"HEALTH CHECK ISSUE: {result_text}")
+                        else:
+                            print(f"HEALTH CHECK RESULT: {result_text}")
+                    
+                    elif tool_name == "server_info":
+                        # Simple success for server info
+                        print(f"SUCCESS: Server info result:")
+                        print(result_text)
+                    
+                    elif "Error" in result_text or "ERROR" in result_text:
+                        # Handle error responses for any tool
+                        print(f"TOOL ERROR: {result_text}")
+                    
+                    else:
+                        # Handle report tools and other successful responses
+                        print(f"SUCCESS: {tool_name} completed:")
+                        # Show first few lines of the response
+                        lines = result_text.split('\n')
+                        for line in lines[:10]:  # Show first 10 lines
+                            print(f"   {line}")
+                        if len(lines) > 10:
+                            print(f"   ... and {len(lines) - 10} more lines")
+                        
                 else:
-                    print(f"HEALTH CHECK RESULT: {result_text}")
+                    print(f"ERROR: {tool_name} completed but returned no content")
             else:
-                print("ERROR: Health check completed but returned no content")
-        else:
-            print("ERROR: Health check failed - no response received")
-            if response:
-                print(f"   Response: {response}")
-        
-        # Test 4: Call server_info tool
-        print("\nTEST 4: Call server_info tool")
-        server_info_request = {
-            "jsonrpc": "2.0",
-            "id": 4,
-            "method": "tools/call",
-            "params": {
-                "name": "server_info",
-                "arguments": {}
-            }
-        }
-        
-        response = send_mcp_request(process, server_info_request)
-        if response and "result" in response:
-            content = response["result"].get("content", [])
-            if content:
-                print(f"SUCCESS: Server info result:")
-                print(content[0].get('text', 'No text'))
-            else:
-                print("SUCCESS: Server info completed (no content)")
-        else:
-            print("ERROR: Server info failed")
-            if response:
-                print(f"   Response: {response}")
+                print(f"ERROR: {tool_name} failed - no response received")
+                if response:
+                    print(f"   Response: {response}")
         
         print("\nSUCCESS: All tests completed!")
         

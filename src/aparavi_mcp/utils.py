@@ -56,7 +56,7 @@ def encode_aql_query(query: str) -> str:
 def create_query_options(
     format_type: str = "json",
     stream: bool = False,
-    validate: bool = True
+    validate: bool = False
 ) -> str:
     """
     Create options JSON string for APARAVI API queries.
