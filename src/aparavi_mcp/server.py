@@ -74,6 +74,15 @@ class AparaviMCPServer:
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "data_sources_overview",
+                "description": "Get comprehensive analysis of data sources including size, activity indicators, and file categorization metrics",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
         
@@ -92,6 +101,8 @@ class AparaviMCPServer:
                 return await self._handle_health_check()
             elif tool_name == "server_info":
                 return await self._handle_server_info()
+            elif tool_name == "data_sources_overview":
+                return await self._handle_data_sources_overview()
             else:
                 error_msg = f"Unknown tool: {tool_name}"
                 self.logger.error(error_msg)
@@ -171,6 +182,106 @@ class AparaviMCPServer:
             
         except Exception as e:
             error_msg = f"Failed to get server info: {format_error_message(e)}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+    
+    async def _handle_data_sources_overview(self) -> Dict[str, Any]:
+        """Handle data sources overview report requests."""
+        self.logger.debug("Generating data sources overview report")
+        
+        try:
+            # AQL query for comprehensive data sources analysis
+            aql_query = """
+SELECT
+ COMPONENTS(parentPath, 3) AS "Data Source",
+ SUM(size)/1073741824 AS "Total Size (GB)",
+ COUNT(name) AS "File Count",
+ AVG(size)/1048576 AS "Average File Size (MB)",
+ 
+ -- Recent activity indicators
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Files Created Last 30 Days",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Stale Files (>1 Year)",
+ 
+ -- Size categories
+ SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS "Large Files (>1GB)",
+ 
+ -- Duplicates
+ SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates"
+
+FROM 
+ STORE('/')
+WHERE 
+ ClassID = 'idxobject'
+GROUP BY 
+ COMPONENTS(parentPath, 3)
+ORDER BY 
+ "Total Size (GB)" DESC
+""".strip()
+            
+            self.logger.info("Executing data sources overview query")
+            
+            # Execute the AQL query
+            result = await self.aparavi_client.execute_query(aql_query, format_type="json")
+            
+            if isinstance(result, dict) and result.get("status") == "OK":
+                # Format the results for display
+                data = result.get("data", {})
+                objects = data.get("objects", [])
+                
+                if not objects:
+                    return {
+                        "content": [{"type": "text", "text": "No data sources found or no data available."}]
+                    }
+                
+                # Format the report
+                report_text = "# APARAVI Data Sources Overview\n\n"
+                report_text += f"**Total Data Sources Found:** {len(objects)}\n\n"
+                
+                # Create a formatted table
+                for i, obj in enumerate(objects, 1):
+                    data_source = obj.get("Data Source", "Unknown")
+                    total_size = float(obj.get("Total Size (GB)", 0))
+                    file_count = int(obj.get("File Count", 0))
+                    avg_size = float(obj.get("Average File Size (MB)", 0))
+                    recent_files = int(obj.get("Files Created Last 30 Days", 0))
+                    stale_files = int(obj.get("Stale Files (>1 Year)", 0))
+                    large_files = int(obj.get("Large Files (>1GB)", 0))
+                    duplicate_files = int(obj.get("Files with Duplicates", 0))
+                    
+                    report_text += f"## {i}. {data_source}\n"
+                    report_text += f"- **Total Size:** {total_size:.2f} GB\n"
+                    report_text += f"- **File Count:** {file_count:,} files\n"
+                    report_text += f"- **Average File Size:** {avg_size:.2f} MB\n"
+                    report_text += f"- **Recent Activity:** {recent_files:,} files created in last 30 days\n"
+                    report_text += f"- **Stale Data:** {stale_files:,} files not accessed in >1 year\n"
+                    report_text += f"- **Large Files:** {large_files:,} files >1GB\n"
+                    report_text += f"- **Duplicates:** {duplicate_files:,} files with duplicates\n\n"
+                
+                self.logger.info(f"Data sources overview report generated successfully with {len(objects)} sources")
+                
+                return {
+                    "content": [{"type": "text", "text": report_text}]
+                }
+                
+            else:
+                # Handle error response
+                error_msg = "Failed to generate data sources overview report"
+                if isinstance(result, str):
+                    error_msg += f": {result}"
+                elif isinstance(result, dict):
+                    error_msg += f": {result.get('message', 'Unknown error')}"
+                
+                self.logger.error(error_msg)
+                return {
+                    "content": [{"type": "text", "text": error_msg}],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = f"Error generating data sources overview: {format_error_message(e)}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],

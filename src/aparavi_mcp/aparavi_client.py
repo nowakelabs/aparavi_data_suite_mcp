@@ -81,10 +81,10 @@ class AparaviClient:
             
             self.logger.debug(f"Testing health check with query: {test_query}")
             
-            # Use validation mode to test syntax and connectivity without full execution
+            # Execute the query to test both syntax and actual data retrieval
             params = {
                 "select": encode_aql_query(test_query),
-                "options": create_query_options(format_type="json", validate=True)
+                "options": create_query_options(format_type="json", validate=False)
             }
             
             async with self._session.get(
