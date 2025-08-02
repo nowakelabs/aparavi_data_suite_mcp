@@ -1,12 +1,12 @@
 """
-APARAVI MCP Server Package
+Aparavi Data Suite MCP Server Package
 
-A Model Context Protocol (MCP) server for querying APARAVI data management systems.
+A Model Context Protocol (MCP) server for querying Aparavi Data Suite systems.
 Provides tools for executing predefined AQL reports and managing data queries.
 """
 
-__version__ = "0.1.0"
-__author__ = "Nowake Labs"
+__version__ = "1.0.0"
+__author__ = "Aparavi Team"
 __email__ = "hello@nowakelabs.com"
 
 # Import main server class

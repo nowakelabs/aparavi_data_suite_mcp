@@ -1,20 +1,20 @@
-# APARAVI MCP Server
+# Aparavi Data Suite MCP Server
 
-A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop and other MCP clients to interact with APARAVI data management systems through natural language. The server provides a unified interface for executing AQL (APARAVI Query Language) queries, running predefined reports, and validating custom queries.
+A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop and other MCP clients to interact with Aparavi Data Suite systems through natural language. The server provides a unified interface for executing AQL (Aparavi Data Suite Query Language) queries, running predefined reports, and validating custom queries.
 
 ## 🚀 Features
 
 ### Core MCP Tools
 - **`health_check`**: Comprehensive server health monitoring with API connectivity and AQL validation
 - **`server_info`**: Detailed server configuration and capability information
-- **`run_aparavi_report`**: Execute 20 predefined APARAVI reports and 5 analysis workflows
+- **`run_aparavi_report`**: Execute 20 predefined Aparavi Data Suite reports and 5 analysis workflows
 - **`validate_aql_query`**: Validate custom AQL queries without execution
 - **`execute_custom_aql_query`**: Validate and execute custom AQL queries with raw JSON output
 
 ### Advanced Capabilities
 - **20 Predefined Reports**: Comprehensive data analysis covering storage, duplicates, classifications, and more
 - **5 Analysis Workflows**: Pre-configured multi-report analysis for common business scenarios
-- **Smart Query Validation**: Real-time AQL syntax validation using APARAVI API
+- **Smart Query Validation**: Real-time AQL syntax validation using Aparavi Data Suite API
 - **Raw JSON Output**: Unformatted results for flexible LLM interpretation and analysis
 - **Intelligent Report Discovery**: Natural language report selection with keyword matching
 - **Secure Authentication**: HTTP Basic Auth integration with environment-based credentials
@@ -25,7 +25,7 @@ A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop 
 
 - **Python 3.11+**: Required for modern async features
 - **UV Package Manager**: Fast dependency management
-- **APARAVI System**: Access to APARAVI data management API
+- **Aparavi Data Suite System**: Access to Aparavi Data Suite API
 - **Claude Desktop**: For MCP integration (or any MCP-compatible client)
 
 ## 🛠️ Installation
@@ -59,23 +59,23 @@ uv pip install -e ".[dev]"
 
 ### 3. Environment Configuration
 
-Copy the environment template and configure your APARAVI connection:
+Copy the environment template and configure your Aparavi Data Suite connection:
 
 ```bash
 cp .env.template .env
 ```
 
-Edit `.env` with your APARAVI credentials:
+Edit `.env` with your Aparavi Data Suite credentials:
 
 ```env
-# APARAVI API Configuration
+# Aparavi Data Suite API Configuration
 APARAVI_BASE_URL=http://localhost
 APARAVI_PORT=80
 APARAVI_USERNAME=your_username
 APARAVI_PASSWORD=your_password
 
 # Server Configuration
-SERVER_NAME=APARAVI MCP Server
+SERVER_NAME=Aparavi Data Suite MCP Server
 SERVER_VERSION=1.0.0
 LOG_LEVEL=INFO
 ```
@@ -212,7 +212,7 @@ python scripts/start_server.py
 aparavi_reporting_mcp/
 ├── src/aparavi_mcp/           # Main source code
 │   ├── server.py              # MCP server implementation
-│   ├── aparavi_client.py      # APARAVI API client
+│   ├── aparavi_client.py      # Aparavi Data Suite API client
 │   ├── config.py              # Configuration management
 │   └── utils.py               # Utility functions
 ├── config/                    # Configuration files
@@ -254,9 +254,9 @@ python scripts/simple_mcp_test.py
    - Check `.env` file exists and has correct values
 
 2. **Authentication Failed**
-   - Verify APARAVI credentials in `.env`
+   - Verify Aparavi Data Suite credentials in `.env`
    - Test connectivity: `curl -u username:password http://localhost:80/server/api/v3/database/query`
-   - Ensure APARAVI server is running and accessible
+   - Ensure Aparavi Data Suite server is running and accessible
 
 3. **Claude Desktop Integration Issues**
    - Verify `claude_desktop_config.json` syntax is valid JSON
@@ -268,7 +268,7 @@ python scripts/simple_mcp_test.py
    - Use `validate_aql_query` tool to check syntax first
    - Remember: always include `ClassID = 'idxobject'` for file queries
    - No `COUNT(DISTINCT)` - use proper AQL syntax
-   - Check APARAVI server logs for detailed errors
+   - Check Aparavi Data Suite server logs for detailed errors
 
 5. **Unicode/Encoding Errors**
    - This project avoids Unicode emojis for Windows compatibility
@@ -289,6 +289,8 @@ python -c "import asyncio; from src.aparavi_mcp.server import AparaviMCPServer; 
 ## 📚 AQL Reference
 
 ### Core AQL Syntax Rules
+
+The server uses Aparavi Data Suite Query Language (AQL) for data queries. Key syntax rules:
 
 - **Always include:** `ClassID = 'idxobject'` for file queries
 - **Field names:** `name`, `path`, `parentPath`, `size`, `extension`, `createTime`, `modifyTime`
@@ -357,4 +359,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built for seamless APARAVI data management through Claude Desktop** 🚀
+**Built for seamless Aparavi Data Suite management through Claude Desktop** 🚀

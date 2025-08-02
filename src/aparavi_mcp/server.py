@@ -1,5 +1,5 @@
 """
-Main MCP server implementation for APARAVI data management system.
+Main MCP server implementation for Aparavi Data Suite.
 This simplified version avoids the TaskGroup issues present in the standard MCP SDK.
 """
 
@@ -17,7 +17,7 @@ from .aparavi_client import AparaviClient
 
 
 def load_reports_config(config_path: Optional[str] = None) -> Dict[str, Any]:
-    """Load APARAVI reports configuration from JSON file."""
+    """Load Aparavi Data Suite reports configuration from JSON file."""
     if config_path is None:
         # Default to config/aparavi_reports.json relative to this file
         current_dir = Path(__file__).parent
@@ -33,11 +33,11 @@ def load_reports_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 
 
 class AparaviMCPServer:
-    """APARAVI MCP Server for querying data management systems."""
+    """Aparavi Data Suite MCP Server for querying data management systems."""
     
     def __init__(self, config_path: Optional[str] = None, reports_config_path: Optional[str] = None):
         """
-        Initialize the APARAVI MCP server.
+        Initialize the Aparavi Data Suite MCP server.
         
         Args:
             config_path: Optional path to configuration file
@@ -49,7 +49,7 @@ class AparaviMCPServer:
         
         # Set up logging
         self.logger = setup_logging(self.config.server.log_level)
-        self.logger.info(f"Initializing APARAVI MCP Server v{self.config.server.version}")
+        self.logger.info(f"Initializing Aparavi Data Suite MCP Server v{self.config.server.version}")
         
         # Load reports configuration
         try:
@@ -61,10 +61,10 @@ class AparaviMCPServer:
             self.logger.error(f"Failed to load reports configuration: {e}")
             raise
         
-        # Initialize APARAVI client
+        # Initialize Aparavi Data Suite client
         self.aparavi_client = AparaviClient(self.config.aparavi, self.logger)
         
-        self.logger.info("APARAVI MCP Server initialized successfully")
+        self.logger.info("Aparavi Data Suite MCP Server initialized successfully")
     
     async def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP initialize request."""
@@ -88,7 +88,7 @@ class AparaviMCPServer:
         tools = [
             {
                 "name": "health_check",
-                "description": "Check the health and connectivity of the APARAVI MCP server and API connection, including validation of all configured AQL queries",
+                "description": "Check the health and connectivity of the Aparavi Data Suite MCP server and API connection, including validation of all configured AQL queries",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -97,7 +97,7 @@ class AparaviMCPServer:
             },
             {
                 "name": "server_info", 
-                "description": "Get detailed information about the APARAVI MCP server configuration and capabilities",
+                "description": "Get detailed information about the Aparavi Data Suite MCP server configuration and capabilities",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -106,7 +106,7 @@ class AparaviMCPServer:
             },
             {
                 "name": "run_aparavi_report",
-                "description": "Execute APARAVI AQL reports or analysis workflows. Use 'list' to discover available reports and workflows.",
+                "description": "Execute Aparavi Data Suite AQL reports or analysis workflows. Use 'list' to discover available reports and workflows.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -124,7 +124,7 @@ class AparaviMCPServer:
             },
             {
                 "name": "validate_aql_query",
-                "description": "Validate a custom AQL query against the APARAVI API without executing it. Returns validation status and any syntax errors.",
+                "description": "Validate a custom AQL query against the Aparavi Data Suite API without executing it. Returns validation status and any syntax errors.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -203,17 +203,17 @@ class AparaviMCPServer:
         overall_status = "SUCCESS"
         
         try:
-            # Step 1: Test APARAVI API connectivity
-            health_report.append("# APARAVI MCP Server Health Check\n")
+            # Step 1: Test Aparavi Data Suite API connectivity
+            health_report.append("# Aparavi Data Suite MCP Server Health Check\n")
             health_report.append("## 1. API Connectivity Test\n")
             
             health_result = await self.aparavi_client.health_check()
             
             if isinstance(health_result, dict) and health_result.get("status") == "OK":
-                health_report.append("[PASS] **API Connection**: PASSED - Successfully connected to APARAVI API\n")
+                health_report.append("[PASS] **API Connection**: PASSED - Successfully connected to Aparavi Data Suite API\n")
                 self.logger.info("API connectivity check passed")
             else:
-                health_report.append("[FAIL] **API Connection**: FAILED - Could not connect to APARAVI API\n")
+                health_report.append("[FAIL] **API Connection**: FAILED - Could not connect to Aparavi Data Suite API\n")
                 overall_status = "WARNING"
                 self.logger.warning("API connectivity check failed")
             
@@ -311,7 +311,7 @@ class AparaviMCPServer:
                 continue
             
             try:
-                # Validate the query using APARAVI API
+                # Validate the query using Aparavi Data Suite API
                 result = await self.aparavi_client.execute_query(
                     aql_query, 
                     format_type="json", 
@@ -353,7 +353,7 @@ class AparaviMCPServer:
                 "log_level": self.config.server.log_level
             }
             
-            info_text = "APARAVI MCP Server Information:\n\n"
+            info_text = "Aparavi Data Suite MCP Server Information:\n\n"
             for key, value in info.items():
                 info_text += f"• {key.replace('_', ' ').title()}: {value}\n"
             
@@ -409,8 +409,8 @@ class AparaviMCPServer:
             }
 
     def _list_available_reports(self) -> Dict[str, Any]:
-        """List all available APARAVI reports."""
-        report_list = "# Available APARAVI Reports\n\n"
+        """List all available Aparavi Data Suite reports."""
+        report_list = "# Available Aparavi Data Suite Reports\n\n"
         
         for report_name, report_config in self.aparavi_reports.items():
             description = report_config.get("description", "No description available")
@@ -439,7 +439,7 @@ class AparaviMCPServer:
         }
     
     async def _execute_single_report(self, report_name: str) -> Dict[str, Any]:
-        """Execute a single APARAVI report."""
+        """Execute a single Aparavi Data Suite report."""
         self.logger.info(f"Executing single report: {report_name}")
         
         # Check if report exists
@@ -471,7 +471,7 @@ class AparaviMCPServer:
                 return {
                     "content": [{
                         "type": "text", 
-                        "text": f"# APARAVI Report: {report_name}\n\n{description}\n\nRaw JSON Response:\n```json\n{json_response}\n```"
+                        "text": f"# Aparavi Data Suite Report: {report_name}\n\n{description}\n\nRaw JSON Response:\n```json\n{json_response}\n```"
                     }]
                 }
             else:
@@ -525,7 +525,7 @@ class AparaviMCPServer:
             
             # Execute all reports in the workflow
             workflow_results = []
-            workflow_results.append(f"# APARAVI Analysis Workflow: {workflow_name}\n")
+            workflow_results.append(f"# Aparavi Data Suite Analysis Workflow: {workflow_name}\n")
             workflow_results.append(f"{workflow_description}\n")
             workflow_results.append(f"Executing {len(report_names)} reports...\n\n")
             
@@ -603,7 +603,7 @@ class AparaviMCPServer:
         try:
             self.logger.info(f"Validating AQL query: {query[:100]}...")
             
-            # Use the APARAVI client to validate the query
+            # Use the Aparavi Data Suite client to validate the query
             result = await self.aparavi_client.execute_query(
                 query=query.strip(),
                 format_type="json",
@@ -661,7 +661,7 @@ class AparaviMCPServer:
 {validation_result['query']}
 ```
 
-**Result:** The AQL query syntax is valid and can be executed against the APARAVI API.
+**Result:** The AQL query syntax is valid and can be executed against the Aparavi Data Suite API.
 """
             else:
                 response_text = f"""# AQL Query Validation Result
@@ -675,7 +675,7 @@ class AparaviMCPServer:
 
 **Error:** {validation_result['message']}
 
-**Recommendation:** Please check the AQL syntax and ensure all field names, functions, and clauses are correct according to APARAVI AQL documentation.
+**Recommendation:** Please check the AQL syntax and ensure all field names, functions, and clauses are correct according to Aparavi Data Suite AQL documentation.
 """
             
             return {
@@ -706,7 +706,7 @@ class AparaviMCPServer:
 
 **Error:** {error_msg}
 
-**Note:** This may indicate a connection issue with the APARAVI API or an internal server error.
+**Note:** This may indicate a connection issue with the Aparavi Data Suite API or an internal server error.
 """
                     }
                 ],
@@ -866,7 +866,7 @@ class AparaviMCPServer:
 {json.dumps(validation_result, indent=2)}
 ```
 
-**Note:** This may indicate an issue with the APARAVI API or server configuration."""
+**Note:** This may indicate an issue with the Aparavi Data Suite API or server configuration."""
                     
                     self.logger.warning(f"Unexpected validation response: {validation_result}")
                     return {
@@ -891,7 +891,7 @@ class AparaviMCPServer:
 
 **Raw Response:** {str(validation_result)}
 
-**Note:** This may indicate a connection issue with the APARAVI API."""
+**Note:** This may indicate a connection issue with the Aparavi Data Suite API."""
                 
                 self.logger.warning("Unexpected validation response format")
                 return {
@@ -917,7 +917,7 @@ class AparaviMCPServer:
 
 **Error:** {error_msg}
 
-**Note:** This may indicate a connection issue with the APARAVI API or an internal server error."""
+**Note:** This may indicate a connection issue with the Aparavi Data Suite API or an internal server error."""
             
             return {
                 "content": [{
@@ -981,10 +981,10 @@ class AparaviMCPServer:
     
     async def run(self) -> None:
         """Run the MCP server."""
-        self.logger.info("Starting APARAVI MCP Server")
+        self.logger.info("Starting Aparavi Data Suite MCP Server")
         
         try:
-            # Initialize APARAVI client connection
+            # Initialize Aparavi Data Suite client connection
             await self.aparavi_client.initialize()
             
             # Read from stdin and write to stdout
@@ -1032,11 +1032,11 @@ class AparaviMCPServer:
                 await self.aparavi_client.close()
             except Exception as e:
                 self.logger.warning(f"Error during cleanup: {e}")
-            self.logger.info("APARAVI MCP Server stopped")
+            self.logger.info("Aparavi Data Suite MCP Server stopped")
 
 
 async def async_main() -> None:
-    """Async main entry point for the APARAVI MCP server."""
+    """Async main entry point for the Aparavi Data Suite MCP server."""
     try:
         server = AparaviMCPServer()
         await server.run()
@@ -1046,7 +1046,7 @@ async def async_main() -> None:
 
 
 def main() -> None:
-    """Main entry point for the APARAVI MCP server."""
+    """Main entry point for the Aparavi Data Suite MCP server."""
     try:
         asyncio.run(async_main())
     except KeyboardInterrupt:

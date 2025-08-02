@@ -1,3 +1,3 @@
 """
-Test suite for APARAVI MCP Server.
+Test suite for Aparavi Data Suite MCP Server.
 """

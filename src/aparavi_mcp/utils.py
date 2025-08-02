@@ -1,5 +1,5 @@
 """
-Utility functions and helpers for APARAVI MCP Server.
+Utility functions and helpers for Aparavi Data Suite MCP Server.
 """
 
 import logging
@@ -59,7 +59,7 @@ def create_query_options(
     validate: bool = False
 ) -> str:
     """
-    Create options JSON string for APARAVI API queries.
+    Create options JSON string for Aparavi Data Suite API queries.
     
     Args:
         format_type: Response format ("json" or "csv")
@@ -95,7 +95,7 @@ def generate_cache_key(query: str, options: Dict[str, Any]) -> str:
 
 def parse_api_response(response_text: str, format_type: str = "json") -> Union[Dict[str, Any], str]:
     """
-    Parse APARAVI API response based on format type.
+    Parse Aparavi Data Suite API response based on format type.
     
     Args:
         response_text: Raw response text from API

@@ -1,5 +1,5 @@
 """
-Configuration management for APARAVI MCP Server.
+Configuration management for Aparavi Data Suite MCP Server.
 """
 
 import os
@@ -13,19 +13,19 @@ load_dotenv()
 
 
 class AparaviConfig(BaseModel):
-    """Configuration for APARAVI API connection."""
+    """Configuration for Aparavi Data Suite API connection."""
     
-    host: str = Field(default="localhost", description="APARAVI server host")
-    port: int = Field(default=80, description="APARAVI server port")
-    username: str = Field(..., description="APARAVI username for authentication")
-    password: str = Field(..., description="APARAVI password for authentication")
-    api_version: str = Field(default="v3", description="APARAVI API version")
+    host: str = Field(default="localhost", description="Aparavi Data Suite server host")
+    port: int = Field(default=80, description="Aparavi Data Suite server port")
+    username: str = Field(..., description="Aparavi Data Suite username for authentication")
+    password: str = Field(..., description="Aparavi Data Suite password for authentication")
+    api_version: str = Field(default="v3", description="Aparavi Data Suite API version")
     timeout: int = Field(default=30, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum number of retries")
     
     @property
     def base_url(self) -> str:
-        """Get the base URL for APARAVI API."""
+        """Get the base URL for Aparavi Data Suite API."""
         return f"http://{self.host}:{self.port}/server/api/{self.api_version}"
     
     @property
@@ -37,7 +37,7 @@ class AparaviConfig(BaseModel):
 class MCPServerConfig(BaseModel):
     """Configuration for MCP server."""
     
-    name: str = Field(default="aparavi-mcp-server", description="Server name")
+    name: str = Field(default="Aparavi Data Suite MCP Server", description="Server name")
     version: str = Field(default="0.1.0", description="Server version")
     log_level: str = Field(default="INFO", description="Logging level")
     cache_enabled: bool = Field(default=True, description="Enable query caching")
@@ -73,7 +73,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
     )
     
     server_config = MCPServerConfig(
-        name=os.getenv("MCP_SERVER_NAME", "aparavi-mcp-server"),
+        name=os.getenv("MCP_SERVER_NAME", "Aparavi Data Suite MCP Server"),
         version=os.getenv("MCP_SERVER_VERSION", "0.1.0"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         cache_enabled=os.getenv("CACHE_ENABLED", "true").lower() == "true",
@@ -112,16 +112,16 @@ def validate_config(config: Config) -> None:
         ValueError: If configuration is invalid
     """
     if not config.aparavi.username:
-        raise ValueError("APARAVI username is required")
+        raise ValueError("Aparavi Data Suite username is required")
     
     if not config.aparavi.password:
-        raise ValueError("APARAVI password is required")
+        raise ValueError("Aparavi Data Suite password is required")
     
     if config.aparavi.port <= 0 or config.aparavi.port > 65535:
-        raise ValueError("APARAVI port must be between 1 and 65535")
+        raise ValueError("Aparavi Data Suite port must be between 1 and 65535")
     
     if config.aparavi.timeout <= 0:
-        raise ValueError("APARAVI timeout must be positive")
+        raise ValueError("Aparavi Data Suite timeout must be positive")
     
     if config.aparavi.max_retries < 0:
-        raise ValueError("APARAVI max_retries must be non-negative")
+        raise ValueError("Aparavi Data Suite max_retries must be non-negative")
