@@ -142,11 +142,18 @@ def test_mcp_server():
         if response and "result" in response:
             content = response["result"].get("content", [])
             if content:
-                print(f"SUCCESS: Health check result: {content[0].get('text', 'No text')}")
+                result_text = content[0].get('text', 'No text')
+                # Determine if this is actually a success or failure based on content
+                if "SUCCESS:" in result_text:
+                    print(f"SUCCESS: {result_text}")
+                elif "WARNING:" in result_text or "ERROR:" in result_text:
+                    print(f"HEALTH CHECK ISSUE: {result_text}")
+                else:
+                    print(f"HEALTH CHECK RESULT: {result_text}")
             else:
-                print("SUCCESS: Health check completed (no content)")
+                print("ERROR: Health check completed but returned no content")
         else:
-            print("ERROR: Health check failed")
+            print("ERROR: Health check failed - no response received")
             if response:
                 print(f"   Response: {response}")
         
