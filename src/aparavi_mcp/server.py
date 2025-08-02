@@ -269,36 +269,7 @@ ORDER BY
                 "isError": True
             }
     
-            
-            # Format the report
-            report_text = "# APARAVI Data Sources Overview\n\n"
-            report_text += f"**Total Data Sources Found:** {len(objects)}\n\n"
-            
-            # Create a formatted table
-            for i, obj in enumerate(objects, 1):
-                data_source = obj.get("Data Source", "Unknown")
-                total_size = float(obj.get("Total Size (GB)", 0))
-                file_count = int(obj.get("File Count", 0))
-                avg_size = float(obj.get("Average File Size (MB)", 0))
-                recent_files = int(obj.get("Files Created Last 30 Days", 0))
-                stale_files = int(obj.get("Stale Files (>1 Year)", 0))
-                large_files = int(obj.get("Large Files (>1GB)", 0))
-                duplicate_files = int(obj.get("Files with Duplicates", 0))
-                
-                report_text += f"## {i}. {data_source}\n"
-                report_text += f"- **Total Size:** {total_size:.2f} GB\n"
-                report_text += f"- **File Count:** {file_count:,} files\n"
-                report_text += f"- **Average File Size:** {avg_size:.2f} MB\n"
-                report_text += f"- **Recent Activity:** {recent_files:,} files created in last 30 days\n"
-                report_text += f"- **Stale Data:** {stale_files:,} files not accessed in >1 year\n"
-                report_text += f"- **Large Files:** {large_files:,} files >1GB\n"
-                report_text += f"- **Duplicates:** {duplicate_files:,} files with duplicates\n\n"
-            
-            self.logger.info(f"Data sources overview report generated successfully with {len(objects)} sources")
-            
-            return {
-                "content": [{"type": "text", "text": report_text}]
-            }
+
             
         else:
             # Handle error response
