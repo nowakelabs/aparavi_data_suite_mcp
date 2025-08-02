@@ -88,20 +88,15 @@ class AparaviMCPServer:
         tools = [
             {
                 "name": "health_check",
-                "description": "Check the health status of the APARAVI MCP server and its connection to the APARAVI API. Use 'comprehensive: true' for full AQL validation.",
+                "description": "Check the health and connectivity of the APARAVI MCP server and API connection, including validation of all configured AQL queries",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {
-                        "comprehensive": {
-                            "type": "boolean",
-                            "description": "If true, performs comprehensive health check including AQL validation of all 20 queries. If false (default), performs quick connectivity check only."
-                        }
-                    },
+                    "properties": {},
                     "required": []
                 }
             },
             {
-                "name": "server_info",
+                "name": "server_info", 
                 "description": "Get detailed information about the APARAVI MCP server configuration and capabilities",
                 "inputSchema": {
                     "type": "object",
@@ -111,20 +106,34 @@ class AparaviMCPServer:
             },
             {
                 "name": "run_aparavi_report",
-                "description": "Execute APARAVI AQL reports or analysis workflows. Supports 20 different reports including data sources overview, file type analysis, duplicate detection, security review, and more. Can run individual reports or pre-defined analysis workflows that combine multiple related reports.",
+                "description": "Execute APARAVI AQL reports or analysis workflows. Use 'list' to discover available reports and workflows.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "report_name": {
                             "type": "string",
-                            "description": "Name of the specific report to run (e.g., 'data_sources_overview', 'file_type_summary', 'duplicate_files'). Use 'list' to see all available reports."
+                            "description": "Name of the specific report to run, or 'list' to see all available reports"
                         },
                         "workflow_name": {
-                            "type": "string",
-                            "description": "Name of the analysis workflow to run (e.g., 'storage_audit', 'security_review', 'compliance_check'). Use 'list' to see all available workflows."
+                            "type": "string", 
+                            "description": "Name of the analysis workflow to run, or 'list' to see all available workflows"
                         }
                     },
                     "required": []
+                }
+            },
+            {
+                "name": "validate_aql_query",
+                "description": "Validate a custom AQL query against the APARAVI API without executing it. Returns validation status and any syntax errors.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The AQL query to validate"
+                        }
+                    },
+                    "required": ["query"]
                 }
             }
         ]
@@ -138,7 +147,7 @@ class AparaviMCPServer:
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
         
-        self.logger.info(f"Executing tool: {tool_name}")
+        self.logger.info(f"Handling call_tool request for: {tool_name}")
         
         try:
             if tool_name == "health_check":
@@ -147,11 +156,18 @@ class AparaviMCPServer:
                 return await self._handle_server_info()
             elif tool_name == "run_aparavi_report":
                 return await self._handle_run_aparavi_report(arguments)
+            elif tool_name == "validate_aql_query":
+                return await self._handle_validate_aql_query(arguments)
             else:
                 error_msg = f"Unknown tool: {tool_name}"
                 self.logger.error(error_msg)
                 return {
-                    "content": [{"type": "text", "text": error_msg}],
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Error: {error_msg}"
+                        }
+                    ],
                     "isError": True
                 }
                 
@@ -539,6 +555,145 @@ class AparaviMCPServer:
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+    
+    async def _handle_validate_aql_query(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle validate_aql_query tool request."""
+        query = arguments.get("query")
+        
+        if not query:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Error: 'query' parameter is required"
+                    }
+                ],
+                "isError": True
+            }
+        
+        if not isinstance(query, str) or not query.strip():
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Error: 'query' must be a non-empty string"
+                    }
+                ],
+                "isError": True
+            }
+        
+        try:
+            self.logger.info(f"Validating AQL query: {query[:100]}...")
+            
+            # Use the APARAVI client to validate the query
+            result = await self.aparavi_client.execute_query(
+                query=query.strip(),
+                format_type="json",
+                use_cache=False,  # Don't cache validation requests
+                validate_only=True
+            )
+            
+            # Check if validation was successful
+            if isinstance(result, dict):
+                if result.get("status") == "OK" and result.get("data", {}).get("valid") == True:
+                    validation_result = {
+                        "valid": True,
+                        "message": "AQL query syntax is valid",
+                        "query": query.strip()
+                    }
+                    self.logger.info("AQL query validation successful")
+                elif result.get("status") == "error":
+                    # Extract error information from the response
+                    error_msg = result.get("message", "Unknown validation error")
+                    validation_result = {
+                        "valid": False,
+                        "message": f"AQL query validation failed: {error_msg}",
+                        "query": query.strip(),
+                        "error_details": result
+                    }
+                    self.logger.warning(f"AQL query validation failed: {error_msg}")
+                else:
+                    # Handle unexpected status
+                    status = result.get("status", "unknown")
+                    validation_result = {
+                        "valid": False,
+                        "message": f"Unexpected validation response status: {status}",
+                        "query": query.strip(),
+                        "error_details": result
+                    }
+                    self.logger.warning(f"Unexpected validation response: {result}")
+            else:
+                # Handle unexpected response format
+                validation_result = {
+                    "valid": False,
+                    "message": "Unexpected response format from validation",
+                    "query": query.strip(),
+                    "raw_response": str(result)
+                }
+                self.logger.warning("Unexpected validation response format")
+            
+            # Format the response as markdown
+            if validation_result["valid"]:
+                response_text = f"""# AQL Query Validation Result
+
+**Status:** VALID
+
+**Query:**
+```sql
+{validation_result['query']}
+```
+
+**Result:** The AQL query syntax is valid and can be executed against the APARAVI API.
+"""
+            else:
+                response_text = f"""# AQL Query Validation Result
+
+**Status:** INVALID
+
+**Query:**
+```sql
+{validation_result['query']}
+```
+
+**Error:** {validation_result['message']}
+
+**Recommendation:** Please check the AQL syntax and ensure all field names, functions, and clauses are correct according to APARAVI AQL documentation.
+"""
+            
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": response_text
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            error_msg = f"Failed to validate AQL query: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"""# AQL Query Validation Result
+
+**Status:** ERROR
+
+**Query:**
+```sql
+{query.strip()}
+```
+
+**Error:** {error_msg}
+
+**Note:** This may indicate a connection issue with the APARAVI API or an internal server error.
+"""
+                    }
+                ],
                 "isError": True
             }
     
