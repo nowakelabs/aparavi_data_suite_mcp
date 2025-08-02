@@ -1,28 +1,38 @@
 # APARAVI MCP Server
 
-A Model Context Protocol (MCP) server that enables Claude Desktop users to query APARAVI data management systems through natural language. The server exposes 20 predefined APARAVI AQL (APARAVI Query Language) reports as MCP tools for seamless integration.
+A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop and other MCP clients to interact with APARAVI data management systems through natural language. The server provides a unified interface for executing AQL (APARAVI Query Language) queries, running predefined reports, and validating custom queries.
 
-## Features
+## 🚀 Features
 
-- **Natural Language Queries**: Query APARAVI data using conversational language through Claude Desktop
-- **20 Predefined Reports**: Access comprehensive data analysis reports including storage, optimization, and governance insights
-- **Secure Authentication**: HTTP Basic Auth integration with APARAVI API
-- **Intelligent Caching**: Built-in query result caching for improved performance
-- **Error Handling**: Robust error handling with retry logic and detailed logging
-- **Modern Python**: Built with Python 3.11+ using UV for fast dependency management
+### Core MCP Tools
+- **`health_check`**: Comprehensive server health monitoring with API connectivity and AQL validation
+- **`server_info`**: Detailed server configuration and capability information
+- **`run_aparavi_report`**: Execute 20 predefined APARAVI reports and 5 analysis workflows
+- **`validate_aql_query`**: Validate custom AQL queries without execution
+- **`execute_custom_aql_query`**: Validate and execute custom AQL queries with raw JSON output
 
-## Prerequisites
+### Advanced Capabilities
+- **20 Predefined Reports**: Comprehensive data analysis covering storage, duplicates, classifications, and more
+- **5 Analysis Workflows**: Pre-configured multi-report analysis for common business scenarios
+- **Smart Query Validation**: Real-time AQL syntax validation using APARAVI API
+- **Raw JSON Output**: Unformatted results for flexible LLM interpretation and analysis
+- **Intelligent Report Discovery**: Natural language report selection with keyword matching
+- **Secure Authentication**: HTTP Basic Auth integration with environment-based credentials
+- **Robust Error Handling**: Comprehensive error reporting and recovery mechanisms
+- **Modern Architecture**: Python 3.11+ with async/await and UV package management
 
-- Python 3.11 or higher
-- UV package manager
-- Access to an APARAVI data management system
-- Claude Desktop (for MCP integration)
+## 📋 Prerequisites
 
-## Installation
+- **Python 3.11+**: Required for modern async features
+- **UV Package Manager**: Fast dependency management
+- **APARAVI System**: Access to APARAVI data management API
+- **Claude Desktop**: For MCP integration (or any MCP-compatible client)
 
-### 1. Install UV (if not already installed)
+## 🛠️ Installation
 
-**Windows:**
+### 1. Install UV Package Manager
+
+**Windows (PowerShell):**
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
@@ -47,195 +57,304 @@ uv pip install -e .
 uv pip install -e ".[dev]"
 ```
 
-### 3. Configuration
+### 3. Environment Configuration
 
 Copy the environment template and configure your APARAVI connection:
 
 ```bash
-cp .env.example .env
+cp .env.template .env
 ```
 
 Edit `.env` with your APARAVI credentials:
 
-```bash
-APARAVI_HOST=your-aparavi-server
+```env
+# APARAVI API Configuration
+APARAVI_BASE_URL=http://localhost
 APARAVI_PORT=80
 APARAVI_USERNAME=your_username
 APARAVI_PASSWORD=your_password
+
+# Server Configuration
+SERVER_NAME=APARAVI MCP Server
+SERVER_VERSION=1.0.0
+LOG_LEVEL=INFO
 ```
 
-Alternatively, use a YAML configuration file:
+### 4. Claude Desktop Integration
 
-```bash
-cp config/config.example.yaml config/config.yaml
-# Edit config/config.yaml with your settings
+Add the MCP server to your Claude Desktop configuration:
+
+**Location:** `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+
+```json
+{
+  "mcpServers": {
+    "aparavi-reporting": {
+      "command": "python",
+      "args": [
+        "C:\\path\\to\\aparavi_reporting_mcp\\scripts\\start_server_claude.py"
+      ],
+      "cwd": "C:\\path\\to\\aparavi_reporting_mcp"
+    }
+  }
+}
 ```
 
-## Quick Start
+## 📖 Usage
 
-### Start the MCP Server
+### Starting the Server
 
+**For Claude Desktop (recommended):**
+The server starts automatically when Claude Desktop loads. Check the MCP section for available tools.
+
+**For standalone testing:**
 ```bash
-# Using the startup script
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# or
+.venv\Scripts\activate     # Windows
+
+# Start server
 python scripts/start_server.py
-
-# Or directly
-python -m aparavi_mcp.server
-
-# With custom configuration
-python scripts/start_server.py --config config/config.yaml --log-level DEBUG
 ```
 
-### Test Server Health
+### 🔧 Available MCP Tools
 
-The server provides basic health check and info tools for Phase 1:
+#### 1. `health_check`
+**Purpose:** Comprehensive server health monitoring  
+**Parameters:** None  
+**Features:**
+- API connectivity testing
+- AQL query validation for all configured reports
+- Configuration validation
+- Detailed status reporting
 
-- `health_check`: Verify server and APARAVI API connectivity
-- `server_info`: Display server configuration information
+#### 2. `server_info`
+**Purpose:** Detailed server configuration and capabilities  
+**Parameters:** None  
+**Returns:** Server version, configuration, loaded reports count
 
-## Development
+#### 3. `run_aparavi_report`
+**Purpose:** Execute predefined reports and analysis workflows  
+**Parameters:**
+- `report_name` (optional): Specific report name or "list"
+- `workflow_name` (optional): Workflow name or "list"
+
+#### 4. `validate_aql_query`
+**Purpose:** Validate custom AQL queries without execution  
+**Parameters:**
+- `query` (required): AQL query string to validate
+**Returns:** Validation status, syntax errors, recommendations
+
+#### 5. `execute_custom_aql_query`
+**Purpose:** Validate and execute custom AQL queries  
+**Parameters:**
+- `query` (required): AQL query string to validate and execute
+**Returns:** Raw JSON results for LLM interpretation
+
+### 📊 Available Reports (20 Total)
+
+**Storage & Optimization:**
+- `data_sources_overview` - Storage overview by data source
+- `subfolder_overview` - Storage breakdown by subfolder
+- `file_type_analysis` - File type distribution and sizes
+- `large_files_analysis` - Files over 100MB
+- `storage_optimization` - Storage optimization opportunities
+- `archive_candidates` - Files suitable for archiving
+- `cleanup_opportunities` - Data cleanup recommendations
+
+**Data Quality & Duplicates:**
+- `duplicate_files_analysis` - Duplicate file detection
+- `version_control_analysis` - File versioning patterns
+
+**Security & Compliance:**
+- `classification_overview` - Data classification summary
+- `sensitive_data_analysis` - Sensitive data identification
+- `retention_analysis` - Data retention compliance
+- `compliance_summary` - Compliance status overview
+- `risk_assessment` - Data risk evaluation
+
+**Analytics & Insights:**
+- `data_growth_analysis` - Historical data growth trends
+- `user_activity_analysis` - User access patterns
+- `metadata_analysis` - File metadata insights
+- `access_patterns` - File access analytics
+- `collaboration_insights` - File sharing analytics
+- `performance_metrics` - System performance data
+
+### 🔄 Analysis Workflows (5 Total)
+
+- **`storage_optimization`** - Complete storage analysis and recommendations
+- **`data_governance`** - Governance and compliance review
+- **`security_assessment`** - Security-focused analysis
+- **`cleanup_analysis`** - Data cleanup recommendations
+- **`performance_review`** - Performance optimization insights
+
+### 💬 Example Queries
+
+**Natural Language Examples:**
+```sql
+"Show me the health status of the server"
+"Run a storage optimization analysis"
+"What are the largest files in the system?"
+"Show me duplicate files that could be cleaned up"
+"Run the data governance workflow"
+"List all available reports"
+"Validate this AQL query: SELECT name WHERE ClassID = 'idxobject' LIMIT 5"
+"Execute this query and show results: SELECT extension, COUNT(*) WHERE ClassID = 'idxobject' GROUP BY extension"
+```
+
+## 🧪 Development & Testing
 
 ### Project Structure
 
-```
+```bash
 aparavi_reporting_mcp/
-├── src/aparavi_mcp/           # Main package
+├── src/aparavi_mcp/           # Main source code
 │   ├── server.py              # MCP server implementation
 │   ├── aparavi_client.py      # APARAVI API client
 │   ├── config.py              # Configuration management
-│   ├── utils.py               # Utility functions
-│   └── tools/                 # MCP tool definitions (Phase 2)
-├── tests/                     # Test suite
+│   └── utils.py               # Utility functions
 ├── config/                    # Configuration files
+│   └── aparavi_reports.json   # Report and workflow definitions
 ├── scripts/                   # Utility scripts
-└── pyproject.toml            # Project configuration
+│   ├── start_server.py        # Standalone server starter
+│   ├── start_server_claude.py # Claude Desktop wrapper
+│   ├── test_mcp_manual.py     # Manual MCP testing
+│   ├── test_aql_validation.py # AQL validation testing
+│   └── test_execute_custom_aql.py # Custom query testing
+├── references/                # Documentation
+│   └── aparavi_aql_reports.md # Comprehensive AQL reference
+└── tests/                     # Test suite
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-uv run pytest
+# Manual MCP server testing
+python scripts/test_mcp_manual.py
 
-# Run with coverage
-uv run pytest --cov=aparavi_mcp
+# Test AQL validation functionality
+python scripts/test_aql_validation.py
 
-# Run specific test file
-uv run pytest tests/test_server.py
+# Test custom query execution
+python scripts/test_execute_custom_aql.py
+
+# Simple validation test
+python scripts/simple_mcp_test.py
 ```
 
-### Code Quality
-
-```bash
-# Format code
-uv run black src/ tests/
-
-# Lint code
-uv run flake8 src/ tests/
-
-# Type checking
-uv run mypy src/
-```
-
-## Available Reports (Phase 2)
-
-The following APARAVI AQL reports will be available as MCP tools:
-
-### Storage Analysis
-1. Data Sources Overview
-2. Subfolder Overview  
-3. File Type/Extension Summary
-4. Yearly Data Growth Report
-5. Data Owner Summary
-
-### Optimization
-6. Duplicate File Summary
-7. Duplicate File Summary - DETAILED
-8. Large Files Report
-9. Old Files Report
-10. File Type/Extension Activity
-
-### Governance & Compliance
-11. Classification Summary by Data Source
-12. Classifications by Age
-13. Simple Classification Summary
-14. PII Files Report
-15. Sensitive Data Location Analysis
-
-### Advanced Analytics
-16. Storage Trend Analysis
-17. Access Pattern Analysis
-18. Data Lifecycle Insights
-19. Compliance Risk Assessment
-20. Custom Query Builder
-
-## Security
-
-- HTTP Basic Authentication with APARAVI API
-- Environment variable configuration for sensitive data
-- Input sanitization and query validation
-- Secure credential handling
-
-## Configuration Options
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APARAVI_HOST` | localhost | APARAVI server hostname |
-| `APARAVI_PORT` | 80 | APARAVI server port |
-| `APARAVI_USERNAME` | - | Authentication username |
-| `APARAVI_PASSWORD` | - | Authentication password |
-| `APARAVI_API_VERSION` | v3 | API version |
-| `LOG_LEVEL` | INFO | Logging level |
-| `CACHE_ENABLED` | true | Enable query caching |
-| `CACHE_TTL` | 300 | Cache TTL in seconds |
-
-## Troubleshooting
+## 🔧 Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Failed**
-   - Verify APARAVI username/password in `.env`
-   - Check APARAVI server accessibility
+1. **Server Won't Start**
+   - Check Python version (3.11+ required)
+   - Verify virtual environment activation: `uv venv` then activate
+   - Check `.env` file exists and has correct values
 
-2. **Connection Refused**
-   - Confirm APARAVI host/port settings
-   - Verify network connectivity
+2. **Authentication Failed**
+   - Verify APARAVI credentials in `.env`
+   - Test connectivity: `curl -u username:password http://localhost:80/server/api/v3/database/query`
+   - Ensure APARAVI server is running and accessible
 
-3. **Module Import Errors**
-   - Ensure virtual environment is activated
-   - Run `uv pip install -e .` to install in development mode
+3. **Claude Desktop Integration Issues**
+   - Verify `claude_desktop_config.json` syntax is valid JSON
+   - Use absolute paths in configuration
+   - Restart Claude Desktop after config changes
+   - Check Windows path escaping: `C:\\path\\to\\file`
+
+4. **Query Execution Errors**
+   - Use `validate_aql_query` tool to check syntax first
+   - Remember: always include `ClassID = 'idxobject'` for file queries
+   - No `COUNT(DISTINCT)` - use proper AQL syntax
+   - Check APARAVI server logs for detailed errors
+
+5. **Unicode/Encoding Errors**
+   - This project avoids Unicode emojis for Windows compatibility
+   - If you see encoding errors, check for Unicode characters in logs
 
 ### Debug Mode
 
-Run with debug logging for detailed information:
-
-```bash
-python scripts/start_server.py --log-level DEBUG
+**Enable Debug Logging:**
+```env
+LOG_LEVEL=DEBUG
 ```
 
-## Contributing
+**Test Health Check:**
+```bash
+python -c "import asyncio; from src.aparavi_mcp.server import AparaviMCPServer; asyncio.run(AparaviMCPServer()._handle_health_check())"
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+## 📚 AQL Reference
 
-## License
+### Core AQL Syntax Rules
 
-[License information to be added]
+- **Always include:** `ClassID = 'idxobject'` for file queries
+- **Field names:** `name`, `path`, `parentPath`, `size`, `extension`, `createTime`, `modifyTime`
+- **Metadata filtering:** `metadata LIKE '%"Field":"Value"%'`
+- **Size units:** 1073741824 = 1GB, 1048576 = 1MB
+- **No SQL functions:** Avoid `COUNT(DISTINCT)`, use AQL-specific syntax
+- **Classification:** `classification != 'Unclassified'` to exclude unclassified
+
+### Example AQL Queries
+
+**Basic file listing:**
+```sql
+SELECT name, size, extension 
+WHERE ClassID = 'idxobject' 
+LIMIT 10
+```
+
+**Large files analysis:**
+```sql
+SELECT name, size/1048576 AS "Size (MB)", path
+WHERE ClassID = 'idxobject' 
+  AND size > 104857600
+ORDER BY size DESC
+LIMIT 20
+```
+
+**File type distribution:**
+```sql
+SELECT extension, COUNT(*) AS "File Count", SUM(size)/1073741824 AS "Total Size (GB)"
+WHERE ClassID = 'idxobject'
+GROUP BY extension
+ORDER BY "Total Size (GB)" DESC
+```
+
+**Metadata search:**
+```sql
+SELECT name, path
+WHERE ClassID = 'idxobject'
+  AND metadata LIKE '%"Author":"John Doe"%'
+LIMIT 50
+```
+
+## 🤝 Contributing
+
+1. **Fork the repository**
+2. **Create feature branch:** `git checkout -b feature/amazing-feature`
+3. **Follow coding standards:**
+   - Python 3.11+ syntax and type hints
+   - Async/await for I/O operations
+   - No Unicode emojis (Windows compatibility)
+   - Comprehensive error handling
+4. **Add tests** for new functionality
+5. **Test thoroughly** with provided test scripts
+6. **Commit changes:** `git commit -m 'Add amazing feature'`
+7. **Push and create Pull Request**
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
-For support and questions:
-- Check the troubleshooting section
-- Review server logs for error details
-- Contact the APARAVI support team
+- **Issues:** [GitHub Issues](https://github.com/your-org/aparavi_reporting_mcp/issues)
+- **Documentation:** [AQL Reference Guide](references/aparavi_aql_reports.md)
+- **Testing:** Use provided test scripts in `scripts/` directory
 
 ---
 
-**Phase 1 Status**: COMPLETE - Basic MCP server with health checks and configuration
-**Phase 2 Status**: IN DEVELOPMENT - APARAVI API integration and report tools
+**Built for seamless APARAVI data management through Claude Desktop** 🚀
