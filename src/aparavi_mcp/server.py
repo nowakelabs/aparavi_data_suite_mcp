@@ -88,10 +88,15 @@ class AparaviMCPServer:
         tools = [
             {
                 "name": "health_check",
-                "description": "Check the health status of the APARAVI MCP server and its connection to the APARAVI API",
+                "description": "Check the health status of the APARAVI MCP server and its connection to the APARAVI API. Use 'comprehensive: true' for full AQL validation.",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {},
+                    "properties": {
+                        "comprehensive": {
+                            "type": "boolean",
+                            "description": "If true, performs comprehensive health check including AQL validation of all 20 queries. If false (default), performs quick connectivity check only."
+                        }
+                    },
                     "required": []
                 }
             },
@@ -173,10 +178,10 @@ class AparaviMCPServer:
             health_result = await self.aparavi_client.health_check()
             
             if isinstance(health_result, dict) and health_result.get("status") == "OK":
-                health_report.append("✅ **API Connection**: PASSED - Successfully connected to APARAVI API\n")
+                health_report.append("[PASS] **API Connection**: PASSED - Successfully connected to APARAVI API\n")
                 self.logger.info("API connectivity check passed")
             else:
-                health_report.append("❌ **API Connection**: FAILED - Could not connect to APARAVI API\n")
+                health_report.append("[FAIL] **API Connection**: FAILED - Could not connect to APARAVI API\n")
                 overall_status = "WARNING"
                 self.logger.warning("API connectivity check failed")
             
@@ -189,10 +194,10 @@ class AparaviMCPServer:
             failed_queries = total_queries - passed_queries
             
             if failed_queries == 0:
-                health_report.append(f"✅ **AQL Validation**: PASSED - All {total_queries} queries are syntactically valid\n")
+                health_report.append(f"[PASS] **AQL Validation**: PASSED - All {total_queries} queries are syntactically valid\n")
                 self.logger.info(f"AQL validation passed: {total_queries}/{total_queries} queries valid")
             else:
-                health_report.append(f"❌ **AQL Validation**: FAILED - {failed_queries}/{total_queries} queries have syntax errors\n")
+                health_report.append(f"[FAIL] **AQL Validation**: FAILED - {failed_queries}/{total_queries} queries have syntax errors\n")
                 overall_status = "FAILED"
                 self.logger.warning(f"AQL validation failed: {failed_queries} queries have errors")
                 
@@ -223,10 +228,10 @@ class AparaviMCPServer:
                         config_issues.append(f"Workflow '{workflow_name}' references unknown report '{report_name}'")
             
             if not config_issues:
-                health_report.append(f"✅ **Configuration**: PASSED - {len(self.aparavi_reports)} reports and {len(self.analysis_workflows)} workflows loaded\n")
+                health_report.append(f"[PASS] **Configuration**: PASSED - {len(self.aparavi_reports)} reports and {len(self.analysis_workflows)} workflows loaded\n")
                 self.logger.info("Configuration validation passed")
             else:
-                health_report.append("❌ **Configuration**: FAILED - Configuration issues detected\n")
+                health_report.append("[FAIL] **Configuration**: FAILED - Configuration issues detected\n")
                 overall_status = "FAILED"
                 for issue in config_issues:
                     health_report.append(f"- {issue}\n")
@@ -235,13 +240,13 @@ class AparaviMCPServer:
             # Summary
             health_report.append("\n## Summary\n")
             if overall_status == "SUCCESS":
-                health_report.append("🎉 **Overall Status**: HEALTHY - All systems operational\n")
+                health_report.append("[SUCCESS] **Overall Status**: HEALTHY - All systems operational\n")
                 self.logger.info("Comprehensive health check passed")
             elif overall_status == "WARNING":
-                health_report.append("⚠️ **Overall Status**: WARNING - Some issues detected but server functional\n")
+                health_report.append("[WARNING] **Overall Status**: WARNING - Some issues detected but server functional\n")
                 self.logger.warning("Comprehensive health check completed with warnings")
             else:
-                health_report.append("🚨 **Overall Status**: UNHEALTHY - Critical issues detected\n")
+                health_report.append("[ERROR] **Overall Status**: UNHEALTHY - Critical issues detected\n")
                 self.logger.error("Comprehensive health check failed")
             
             return {
