@@ -20,17 +20,45 @@ def send_mcp_request(process, request):
         process.stdin.write(request_json)
         process.stdin.flush()
         
-        # Read response with timeout
-        response_line = process.stdout.readline().strip()
+        # Read response with timeout - handle potentially long responses
+        import select
+        import sys
+        
+        # Wait for response with timeout
+        if sys.platform == "win32":
+            # Windows doesn't support select on pipes, so use a simple timeout
+            import time
+            start_time = time.time()
+            response_line = ""
+            while time.time() - start_time < 30:  # 30 second timeout
+                try:
+                    line = process.stdout.readline()
+                    if line:
+                        response_line = line.strip()
+                        break
+                    time.sleep(0.1)
+                except:
+                    time.sleep(0.1)
+        else:
+            # Unix-like systems can use select
+            ready, _, _ = select.select([process.stdout], [], [], 30)  # 30 second timeout
+            if ready:
+                response_line = process.stdout.readline().strip()
+            else:
+                response_line = ""
+        
         if response_line:
-            print(f"← Received: {response_line}")
+            # Truncate very long responses for display
+            display_response = response_line if len(response_line) <= 200 else response_line[:200] + "..."
+            print(f"← Received: {display_response}")
             try:
                 return json.loads(response_line)
             except json.JSONDecodeError as e:
                 print(f"Error parsing response: {e}")
+                print(f"Raw response length: {len(response_line)} characters")
                 return None
         else:
-            print("← No response received")
+            print("← No response received (timeout)")
             return None
     except Exception as e:
         print(f"Error sending request: {e}")
