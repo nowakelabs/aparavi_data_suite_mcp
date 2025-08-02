@@ -20,17 +20,45 @@ def send_mcp_request(process, request):
         process.stdin.write(request_json)
         process.stdin.flush()
         
-        # Read response with timeout
-        response_line = process.stdout.readline().strip()
+        # Read response with timeout - handle potentially long responses
+        import select
+        import sys
+        
+        # Wait for response with timeout
+        if sys.platform == "win32":
+            # Windows doesn't support select on pipes, so use a simple timeout
+            import time
+            start_time = time.time()
+            response_line = ""
+            while time.time() - start_time < 30:  # 30 second timeout
+                try:
+                    line = process.stdout.readline()
+                    if line:
+                        response_line = line.strip()
+                        break
+                    time.sleep(0.1)
+                except:
+                    time.sleep(0.1)
+        else:
+            # Unix-like systems can use select
+            ready, _, _ = select.select([process.stdout], [], [], 30)  # 30 second timeout
+            if ready:
+                response_line = process.stdout.readline().strip()
+            else:
+                response_line = ""
+        
         if response_line:
-            print(f"← Received: {response_line}")
+            # Truncate very long responses for display
+            display_response = response_line if len(response_line) <= 200 else response_line[:200] + "..."
+            print(f"← Received: {display_response}")
             try:
                 return json.loads(response_line)
             except json.JSONDecodeError as e:
                 print(f"Error parsing response: {e}")
+                print(f"Raw response length: {len(response_line)} characters")
                 return None
         else:
-            print("← No response received")
+            print("← No response received (timeout)")
             return None
     except Exception as e:
         print(f"Error sending request: {e}")
@@ -41,12 +69,18 @@ def test_mcp_server():
     print("Testing APARAVI MCP Server")
     print("=" * 50)
     
-    # Get the project directory
-    project_dir = Path(__file__).parent
-    server_script = project_dir / "scripts" / "start_server.py"
+    # Get the project directory (parent of scripts folder)
+    project_dir = Path(__file__).parent.parent
+    server_script = project_dir / "scripts" / "start_server_claude.py"
+    
+    # Also try the direct server module
+    if not server_script.exists():
+        server_script = project_dir / "src" / "aparavi_mcp" / "server.py"
     
     if not server_script.exists():
         print(f"ERROR: Server script not found: {server_script}")
+        print(f"Looked in: {project_dir / 'scripts' / 'start_server_claude.py'}")
+        print(f"And in: {project_dir / 'src' / 'aparavi_mcp' / 'server.py'}")
         return
     
     print(f"INFO: Project directory: {project_dir}")
@@ -180,6 +214,74 @@ def test_mcp_server():
                     print(f"ERROR: {tool_name} completed but returned no content")
             else:
                 print(f"ERROR: {tool_name} failed - no response received")
+                if response:
+                    print(f"   Response: {response}")
+        
+        # Additional tests for the new run_aparavi_report tool
+        if any(tool['name'] == 'run_aparavi_report' for tool in tools):
+            print("\n" + "="*50)
+            print("ADDITIONAL TESTS: run_aparavi_report tool")
+            print("="*50)
+            
+            # Test: List available reports
+            print("\nTEST: List available reports")
+            list_reports_request = {
+                "jsonrpc": "2.0",
+                "id": 100,
+                "method": "tools/call",
+                "params": {
+                    "name": "run_aparavi_report",
+                    "arguments": {"report_name": "list"}
+                }
+            }
+            
+            response = send_mcp_request(process, list_reports_request)
+            if response and "result" in response:
+                print("SUCCESS: Listed available reports")
+            else:
+                print("ERROR: Failed to list reports")
+            
+            # Test: List available workflows
+            print("\nTEST: List available workflows")
+            list_workflows_request = {
+                "jsonrpc": "2.0",
+                "id": 101,
+                "method": "tools/call",
+                "params": {
+                    "name": "run_aparavi_report",
+                    "arguments": {"workflow_name": "list"}
+                }
+            }
+            
+            response = send_mcp_request(process, list_workflows_request)
+            if response and "result" in response:
+                print("SUCCESS: Listed available workflows")
+            else:
+                print("ERROR: Failed to list workflows")
+            
+            # Test: Run a specific report (data_sources_overview)
+            print("\nTEST: Run data_sources_overview report")
+            run_report_request = {
+                "jsonrpc": "2.0",
+                "id": 102,
+                "method": "tools/call",
+                "params": {
+                    "name": "run_aparavi_report",
+                    "arguments": {"report_name": "data_sources_overview"}
+                }
+            }
+            
+            response = send_mcp_request(process, run_report_request)
+            if response and "result" in response:
+                content = response["result"].get("content", [])
+                if content and "JSON Response" in content[0].get('text', ''):
+                    print("SUCCESS: Executed data_sources_overview report")
+                else:
+                    print("WARNING: Report executed but may have issues")
+                    if content:
+                        print(f"   Response: {content[0].get('text', '')[:200]}...")
+            else:
+                print("ERROR: Failed to run data_sources_overview report")
                 if response:
                     print(f"   Response: {response}")
         

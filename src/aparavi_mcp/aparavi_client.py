@@ -128,7 +128,8 @@ class AparaviClient:
         self,
         query: str,
         format_type: str = "json",
-        use_cache: bool = True
+        use_cache: bool = True,
+        validate_only: bool = False
     ) -> Union[Dict[str, Any], str]:
         """
         Execute an AQL query against the APARAVI API.
@@ -137,9 +138,10 @@ class AparaviClient:
             query: AQL query string
             format_type: Response format ("json" or "csv")
             use_cache: Whether to use caching
+            validate_only: If True, only validate query syntax without execution
             
         Returns:
-            Union[Dict[str, Any], str]: Query results
+            Union[Dict[str, Any], str]: Query results or validation response
             
         Raises:
             AparaviAPIError: If query execution fails
@@ -147,10 +149,10 @@ class AparaviClient:
         try:
             await self.initialize()
             
-            # Check cache first
+            # Skip cache for validation-only requests
             cache_key = None
-            if use_cache:
-                options = {"format": format_type, "stream": False, "validate": True}
+            if use_cache and not validate_only:
+                options = {"format": format_type, "stream": False, "validate": False}
                 cache_key = generate_cache_key(query, options)
                 cached_result = self._cache.get(cache_key)
                 if cached_result is not None:
@@ -160,10 +162,13 @@ class AparaviClient:
             # Prepare request parameters
             params = {
                 "select": encode_aql_query(query),
-                "options": create_query_options(format_type=format_type)
+                "options": create_query_options(format_type=format_type, validate=validate_only)
             }
             
-            self.logger.info(f"Executing AQL query: {query[:100]}...")
+            if validate_only:
+                self.logger.info(f"Validating AQL query: {query[:100]}...")
+            else:
+                self.logger.info(f"Executing AQL query: {query[:100]}...")
             
             # Execute query with retries
             for attempt in range(self.config.max_retries + 1):
@@ -179,16 +184,22 @@ class AparaviClient:
                             
                             # Check if the API returned an error within the 200 response
                             if isinstance(result, dict) and result.get("status") == "error":
-                                self.logger.warning(f"APARAVI API returned error: {result}")
+                                if validate_only:
+                                    self.logger.warning(f"APARAVI API validation failed: {result}")
+                                else:
+                                    self.logger.warning(f"APARAVI API returned error: {result}")
                                 # Return the error response instead of raising an exception
                                 # This allows the MCP server to handle and display the error properly
                                 return result
                             
-                            # Cache successful results only
-                            if use_cache and cache_key:
+                            # Cache successful results only (not validation results)
+                            if use_cache and cache_key and not validate_only:
                                 self._cache.set(cache_key, result)
                             
-                            self.logger.info("Query executed successfully")
+                            if validate_only:
+                                self.logger.info("Query validation successful")
+                            else:
+                                self.logger.info("Query executed successfully")
                             return result
                             
                         elif response.status == 401:
