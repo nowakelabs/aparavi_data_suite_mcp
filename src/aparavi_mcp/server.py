@@ -83,6 +83,15 @@ class AparaviMCPServer:
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "subfolder_overview",
+                "description": "Analyze subfolder structure showing size and file count distribution across deeper directory levels",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
         
@@ -103,6 +112,8 @@ class AparaviMCPServer:
                 return await self._handle_server_info()
             elif tool_name == "data_sources_overview":
                 return await self._handle_data_sources_overview()
+            elif tool_name == "subfolder_overview":
+                return await self._handle_subfolder_overview()
             else:
                 error_msg = f"Unknown tool: {tool_name}"
                 self.logger.error(error_msg)
@@ -282,6 +293,140 @@ ORDER BY
                 
         except Exception as e:
             error_msg = f"Error generating data sources overview: {format_error_message(e)}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+    
+            
+            # Format the report
+            report_text = "# APARAVI Data Sources Overview\n\n"
+            report_text += f"**Total Data Sources Found:** {len(objects)}\n\n"
+            
+            # Create a formatted table
+            for i, obj in enumerate(objects, 1):
+                data_source = obj.get("Data Source", "Unknown")
+                total_size = float(obj.get("Total Size (GB)", 0))
+                file_count = int(obj.get("File Count", 0))
+                avg_size = float(obj.get("Average File Size (MB)", 0))
+                recent_files = int(obj.get("Files Created Last 30 Days", 0))
+                stale_files = int(obj.get("Stale Files (>1 Year)", 0))
+                large_files = int(obj.get("Large Files (>1GB)", 0))
+                duplicate_files = int(obj.get("Files with Duplicates", 0))
+                
+                report_text += f"## {i}. {data_source}\n"
+                report_text += f"- **Total Size:** {total_size:.2f} GB\n"
+                report_text += f"- **File Count:** {file_count:,} files\n"
+                report_text += f"- **Average File Size:** {avg_size:.2f} MB\n"
+                report_text += f"- **Recent Activity:** {recent_files:,} files created in last 30 days\n"
+                report_text += f"- **Stale Data:** {stale_files:,} files not accessed in >1 year\n"
+                report_text += f"- **Large Files:** {large_files:,} files >1GB\n"
+                report_text += f"- **Duplicates:** {duplicate_files:,} files with duplicates\n\n"
+            
+            self.logger.info(f"Data sources overview report generated successfully with {len(objects)} sources")
+            
+            return {
+                "content": [{"type": "text", "text": report_text}]
+            }
+            
+        else:
+            # Handle error response
+            error_msg = "Failed to generate data sources overview report"
+            if isinstance(result, str):
+                error_msg += f": {result}"
+            elif isinstance(result, dict):
+                error_msg += f": {result.get('message', 'Unknown error')}"
+            
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+
+    async def _handle_subfolder_overview(self) -> Dict[str, Any]:
+        """Handle subfolder overview tool request."""
+        try:
+            self.logger.info("Generating subfolder overview report")
+            
+            # AQL query for subfolder analysis - EXACT from reference documentation
+            aql_query = """
+SELECT    
+  COMPONENTS(parentPath, 7) AS Subfolder,
+  SUM(size) as "Size",
+  COUNT(name) as "Count"
+WHERE ClassID LIKE 'idxobject'
+GROUP BY Subfolder
+ORDER BY SUM(size) DESC
+"""
+            
+            # Execute the AQL query
+            result = await self.aparavi_client.execute_query(aql_query, format_type="json")
+            
+            if isinstance(result, dict) and result.get("status") == "OK":
+                # Format the results for display
+                data = result.get("data", {})
+                objects = data.get("objects", [])
+                
+                if not objects:
+                    return {
+                        "content": [{"type": "text", "text": "No subfolder data found or no data available."}]
+                    }
+                
+                # Format the report
+                report_text = "# APARAVI Subfolder Overview\n\n"
+                report_text += f"**Total Subfolders Analyzed:** {len(objects)}\n\n"
+                
+                # Calculate totals
+                total_size = sum(obj.get("Size (GB)", 0) for obj in objects)
+                total_files = sum(obj.get("File Count", 0) for obj in objects)
+                
+                report_text += f"**Total Size Across All Subfolders:** {total_size:.2f} GB\n"
+                report_text += f"**Total Files Across All Subfolders:** {total_files:,}\n\n"
+                
+                # Create a formatted table
+                for i, obj in enumerate(objects, 1):
+                    subfolder = obj.get("Subfolder", "Unknown")
+                    size_gb = obj.get("Size (GB)", 0)
+                    file_count = obj.get("File Count", 0)
+                    avg_size_mb = obj.get("Average File Size (MB)", 0)
+                    unique_extensions = obj.get("Unique Extensions", 0)
+                    recent_files = obj.get("Files Created Last 30 Days", 0)
+                    stale_files = obj.get("Stale Files (>1 Year)", 0)
+                    
+                    report_text += f"## {i}. {subfolder}\n"
+                    report_text += f"- **Size:** {size_gb:.2f} GB\n"
+                    report_text += f"- **File Count:** {file_count:,} files\n"
+                    report_text += f"- **Average File Size:** {avg_size_mb:.2f} MB\n"
+                    report_text += f"- **File Type Diversity:** {unique_extensions} unique extensions\n"
+                    report_text += f"- **Recent Activity:** {recent_files} files created in last 30 days\n"
+                    report_text += f"- **Stale Files:** {stale_files:,} files not accessed in >1 year\n\n"
+                
+                # Add insights
+                if objects:
+                    largest_folder = objects[0]
+                    most_files_folder = max(objects, key=lambda x: x.get("File Count", 0))
+                    most_recent_activity = max(objects, key=lambda x: x.get("Files Created Last 30 Days", 0))
+                    
+                    report_text += "## Key Insights\n\n"
+                    report_text += f"- **Largest Subfolder:** {largest_folder.get('Subfolder', 'Unknown')} ({largest_folder.get('Size (GB)', 0):.2f} GB)\n"
+                    report_text += f"- **Most Files:** {most_files_folder.get('Subfolder', 'Unknown')} ({most_files_folder.get('File Count', 0):,} files)\n"
+                    report_text += f"- **Most Recent Activity:** {most_recent_activity.get('Subfolder', 'Unknown')} ({most_recent_activity.get('Files Created Last 30 Days', 0)} new files)\n"
+                
+                return {
+                    "content": [{"type": "text", "text": report_text}]
+                }
+            else:
+                # Handle error response
+                error_msg = f"Failed to execute subfolder overview query. Response: {result}"
+                self.logger.error(error_msg)
+                return {
+                    "content": [{"type": "text", "text": error_msg}],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = f"Error generating subfolder overview: {format_error_message(e)}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],

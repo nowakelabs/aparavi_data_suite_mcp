@@ -177,7 +177,14 @@ class AparaviClient:
                             response_text = await response.text()
                             result = parse_api_response(response_text, format_type)
                             
-                            # Cache successful results
+                            # Check if the API returned an error within the 200 response
+                            if isinstance(result, dict) and result.get("status") == "error":
+                                self.logger.warning(f"APARAVI API returned error: {result}")
+                                # Return the error response instead of raising an exception
+                                # This allows the MCP server to handle and display the error properly
+                                return result
+                            
+                            # Cache successful results only
                             if use_cache and cache_key:
                                 self._cache.set(cache_key, result)
                             

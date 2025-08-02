@@ -79,32 +79,30 @@ async def test_aparavi_api():
         api_url = f"{config['server_url']}:{config['server_port']}/server/api/v3/database/query"
         print(f"API Endpoint: {api_url}")
         
-        # Test query using the same data sources overview query as MCP server
+        # Test query - Subfolder Overview
         test_query = """
-SELECT
- COMPONENTS(parentPath, 3) AS "Data Source",
- SUM(size)/1073741824 AS "Total Size (GB)",
- COUNT(name) AS "File Count",
- AVG(size)/1048576 AS "Average File Size (MB)",
- 
- -- Recent activity indicators
- SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Files Created Last 30 Days",
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Stale Files (>1 Year)",
- 
- -- Size categories
- SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS "Large Files (>1GB)",
- 
- -- Duplicates
- SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates"
-
+SELECT    
+  COMPONENTS(parentPath, 7) AS "Subfolder",
+  SUM(size)/1073741824 AS "Size (GB)",
+  COUNT(name) AS "File Count",
+  AVG(size)/1048576 AS "Average File Size (MB)",
+  
+  -- File type diversity
+  COUNT(DISTINCT extension) AS "Unique Extensions",
+  
+  -- Activity indicators
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Files Created Last 30 Days",
+  SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Stale Files (>1 Year)"
+  
 FROM 
- STORE('/')
+  STORE('/')
 WHERE 
- ClassID = 'idxobject'
+  ClassID = 'idxobject'
 GROUP BY 
- COMPONENTS(parentPath, 3)
+  COMPONENTS(parentPath, 7)
 ORDER BY 
- "Total Size (GB)" DESC
+  "Size (GB)" DESC
+LIMIT 50
 """.strip()
         print(f"Test Query: {test_query}")
         print()
