@@ -6,7 +6,9 @@ This simplified version avoids the TaskGroup issues present in the standard MCP 
 import asyncio
 import json
 import logging
+import os
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .config import Config, load_config, validate_config
@@ -14,15 +16,32 @@ from .utils import setup_logging, format_error_message
 from .aparavi_client import AparaviClient
 
 
+def load_reports_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+    """Load APARAVI reports configuration from JSON file."""
+    if config_path is None:
+        # Default to config/aparavi_reports.json relative to this file
+        current_dir = Path(__file__).parent
+        config_path = current_dir.parent.parent / "config" / "aparavi_reports.json"
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Reports configuration file not found: {config_path}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in reports configuration file: {e}")
+
+
 class AparaviMCPServer:
     """APARAVI MCP Server for querying data management systems."""
     
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, reports_config_path: Optional[str] = None):
         """
         Initialize the APARAVI MCP server.
         
         Args:
             config_path: Optional path to configuration file
+            reports_config_path: Optional path to reports configuration JSON file
         """
         # Load and validate configuration
         self.config = load_config(config_path)
@@ -31,6 +50,16 @@ class AparaviMCPServer:
         # Set up logging
         self.logger = setup_logging(self.config.server.log_level)
         self.logger.info(f"Initializing APARAVI MCP Server v{self.config.server.version}")
+        
+        # Load reports configuration
+        try:
+            reports_config = load_reports_config(reports_config_path)
+            self.aparavi_reports = reports_config.get("reports", {})
+            self.analysis_workflows = reports_config.get("workflows", {})
+            self.logger.info(f"Loaded {len(self.aparavi_reports)} reports and {len(self.analysis_workflows)} workflows")
+        except Exception as e:
+            self.logger.error(f"Failed to load reports configuration: {e}")
+            raise
         
         # Initialize APARAVI client
         self.aparavi_client = AparaviClient(self.config.aparavi, self.logger)
@@ -59,7 +88,7 @@ class AparaviMCPServer:
         tools = [
             {
                 "name": "health_check",
-                "description": "Check the health and connectivity of the APARAVI MCP server",
+                "description": "Check the health status of the APARAVI MCP server and its connection to the APARAVI API",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -68,7 +97,7 @@ class AparaviMCPServer:
             },
             {
                 "name": "server_info",
-                "description": "Get information about the APARAVI MCP server configuration",
+                "description": "Get detailed information about the APARAVI MCP server configuration and capabilities",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -76,36 +105,28 @@ class AparaviMCPServer:
                 }
             },
             {
-                "name": "data_sources_overview",
-                "description": "Get comprehensive analysis of data sources including size, activity indicators, and file categorization metrics",
+                "name": "run_aparavi_report",
+                "description": "Execute APARAVI AQL reports or analysis workflows. Supports 20 different reports including data sources overview, file type analysis, duplicate detection, security review, and more. Can run individual reports or pre-defined analysis workflows that combine multiple related reports.",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            },
-            {
-                "name": "subfolder_overview",
-                "description": "Analyze subfolder structure showing size and file count distribution across deeper directory levels",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            },
-            {
-                "name": "file_type_extension_summary",
-                "description": "Comprehensive analysis of file types including size metrics, distribution, and file size ranges by extension",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {},
+                    "properties": {
+                        "report_name": {
+                            "type": "string",
+                            "description": "Name of the specific report to run (e.g., 'data_sources_overview', 'file_type_summary', 'duplicate_files'). Use 'list' to see all available reports."
+                        },
+                        "workflow_name": {
+                            "type": "string",
+                            "description": "Name of the analysis workflow to run (e.g., 'storage_audit', 'security_review', 'compliance_check'). Use 'list' to see all available workflows."
+                        }
+                    },
                     "required": []
                 }
             }
         ]
         
-        self.logger.debug(f"Returning {len(tools)} tools")
-        return {"tools": tools}
+        return {
+            "tools": tools
+        }
     
     async def handle_call_tool(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle tools/call request."""
@@ -119,12 +140,8 @@ class AparaviMCPServer:
                 return await self._handle_health_check()
             elif tool_name == "server_info":
                 return await self._handle_server_info()
-            elif tool_name == "data_sources_overview":
-                return await self._handle_data_sources_overview()
-            elif tool_name == "subfolder_overview":
-                return await self._handle_subfolder_overview()
-            elif tool_name == "file_type_extension_summary":
-                return await self._handle_file_type_extension_summary()
+            elif tool_name == "run_aparavi_report":
+                return await self._handle_run_aparavi_report(arguments)
             else:
                 error_msg = f"Unknown tool: {tool_name}"
                 self.logger.error(error_msg)
@@ -142,42 +159,147 @@ class AparaviMCPServer:
             }
     
     async def _handle_health_check(self) -> Dict[str, Any]:
-        """Handle health check requests."""
-        self.logger.debug("Performing health check")
+        """Handle comprehensive health check requests including API connectivity and AQL validation."""
+        self.logger.debug("Performing comprehensive health check")
+        
+        health_report = []
+        overall_status = "SUCCESS"
         
         try:
-            # Test APARAVI API connectivity
+            # Step 1: Test APARAVI API connectivity
+            health_report.append("# APARAVI MCP Server Health Check\n")
+            health_report.append("## 1. API Connectivity Test\n")
+            
             health_result = await self.aparavi_client.health_check()
             
-            if isinstance(health_result, dict):
-                # Successful response with API data
-                import json
-                formatted_response = json.dumps(health_result, indent=2)
-                message = f"SUCCESS: APARAVI MCP Server is healthy and connected to APARAVI API\n\nAPARAVI API Response:\n{formatted_response}"
-                self.logger.info("Health check passed with API response data")
-            elif isinstance(health_result, str):
-                # Error message from health check
-                if "Error" in health_result or "failed" in health_result:
-                    message = f"WARNING: {health_result}"
-                    self.logger.warning(f"Health check failed: {health_result}")
-                else:
-                    message = f"SUCCESS: {health_result}"
-                    self.logger.info(f"Health check passed: {health_result}")
+            if isinstance(health_result, dict) and health_result.get("status") == "OK":
+                health_report.append("✅ **API Connection**: PASSED - Successfully connected to APARAVI API\n")
+                self.logger.info("API connectivity check passed")
             else:
-                message = f"UNKNOWN: Unexpected health check result: {health_result}"
-                self.logger.warning(f"Unexpected health check result type: {type(health_result)}")
+                health_report.append("❌ **API Connection**: FAILED - Could not connect to APARAVI API\n")
+                overall_status = "WARNING"
+                self.logger.warning("API connectivity check failed")
+            
+            # Step 2: Validate AQL queries in configuration
+            health_report.append("\n## 2. AQL Query Validation\n")
+            
+            validation_results = await self._validate_all_aql_queries()
+            total_queries = len(self.aparavi_reports)
+            passed_queries = sum(1 for result in validation_results.values() if result["valid"])
+            failed_queries = total_queries - passed_queries
+            
+            if failed_queries == 0:
+                health_report.append(f"✅ **AQL Validation**: PASSED - All {total_queries} queries are syntactically valid\n")
+                self.logger.info(f"AQL validation passed: {total_queries}/{total_queries} queries valid")
+            else:
+                health_report.append(f"❌ **AQL Validation**: FAILED - {failed_queries}/{total_queries} queries have syntax errors\n")
+                overall_status = "FAILED"
+                self.logger.warning(f"AQL validation failed: {failed_queries} queries have errors")
+                
+                # List failed queries
+                health_report.append("\n**Failed Queries:**\n")
+                for report_name, result in validation_results.items():
+                    if not result["valid"]:
+                        health_report.append(f"- `{report_name}`: {result['error']}\n")
+            
+            # Step 3: Configuration validation
+            health_report.append("\n## 3. Configuration Validation\n")
+            
+            config_issues = []
+            
+            # Check reports configuration
+            if not self.aparavi_reports:
+                config_issues.append("No reports loaded from configuration")
+            
+            # Check workflows configuration
+            if not self.analysis_workflows:
+                config_issues.append("No workflows loaded from configuration")
+            
+            # Validate workflow references
+            for workflow_name, workflow_config in self.analysis_workflows.items():
+                workflow_reports = workflow_config.get("reports", [])
+                for report_name in workflow_reports:
+                    if report_name not in self.aparavi_reports:
+                        config_issues.append(f"Workflow '{workflow_name}' references unknown report '{report_name}'")
+            
+            if not config_issues:
+                health_report.append(f"✅ **Configuration**: PASSED - {len(self.aparavi_reports)} reports and {len(self.analysis_workflows)} workflows loaded\n")
+                self.logger.info("Configuration validation passed")
+            else:
+                health_report.append("❌ **Configuration**: FAILED - Configuration issues detected\n")
+                overall_status = "FAILED"
+                for issue in config_issues:
+                    health_report.append(f"- {issue}\n")
+                self.logger.warning(f"Configuration validation failed: {len(config_issues)} issues")
+            
+            # Summary
+            health_report.append("\n## Summary\n")
+            if overall_status == "SUCCESS":
+                health_report.append("🎉 **Overall Status**: HEALTHY - All systems operational\n")
+                self.logger.info("Comprehensive health check passed")
+            elif overall_status == "WARNING":
+                health_report.append("⚠️ **Overall Status**: WARNING - Some issues detected but server functional\n")
+                self.logger.warning("Comprehensive health check completed with warnings")
+            else:
+                health_report.append("🚨 **Overall Status**: UNHEALTHY - Critical issues detected\n")
+                self.logger.error("Comprehensive health check failed")
             
             return {
-                "content": [{"type": "text", "text": message}]
+                "content": [{"type": "text", "text": "".join(health_report)}],
+                "isError": overall_status == "FAILED"
             }
             
         except Exception as e:
-            error_msg = f"ERROR: Health check failed: {format_error_message(e)}"
+            error_msg = f"ERROR: Comprehensive health check failed: {format_error_message(e)}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],
                 "isError": True
             }
+    
+    async def _validate_all_aql_queries(self) -> Dict[str, Dict[str, any]]:
+        """Validate all AQL queries in the reports configuration."""
+        self.logger.debug(f"Validating {len(self.aparavi_reports)} AQL queries")
+        
+        validation_results = {}
+        
+        for report_name, report_config in self.aparavi_reports.items():
+            aql_query = report_config.get("query", "")
+            
+            if not aql_query:
+                validation_results[report_name] = {
+                    "valid": False,
+                    "error": "No query found in configuration"
+                }
+                continue
+            
+            try:
+                # Validate the query using APARAVI API
+                result = await self.aparavi_client.execute_query(
+                    aql_query, 
+                    format_type="json", 
+                    validate_only=True
+                )
+                
+                if isinstance(result, dict) and result.get("status") == "OK":
+                    validation_results[report_name] = {
+                        "valid": True,
+                        "error": ""
+                    }
+                else:
+                    error_msg = result.get("message", "Unknown validation error") if isinstance(result, dict) else str(result)
+                    validation_results[report_name] = {
+                        "valid": False,
+                        "error": error_msg
+                    }
+                    
+            except Exception as e:
+                validation_results[report_name] = {
+                    "valid": False,
+                    "error": f"Exception during validation: {str(e)}"
+                }
+        
+        return validation_results
     
     async def _handle_server_info(self) -> Dict[str, Any]:
         """Handle server info requests."""
@@ -210,40 +332,95 @@ class AparaviMCPServer:
                 "isError": True
             }
     
-    async def _handle_data_sources_overview(self) -> Dict[str, Any]:
-        """Handle data sources overview report requests."""
-        self.logger.debug("Generating data sources overview report")
+    async def _handle_run_aparavi_report(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle run_aparavi_report tool requests."""
+        self.logger.debug("Handling run_aparavi_report request")
         
         try:
-            # AQL query for comprehensive data sources analysis
-            aql_query = """
-SELECT
- COMPONENTS(parentPath, 3) AS "Data Source",
- SUM(size)/1073741824 AS "Total Size (GB)",
- COUNT(name) AS "File Count",
- AVG(size)/1048576 AS "Average File Size (MB)",
- 
- -- Recent activity indicators
- SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Files Created Last 30 Days",
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Stale Files (>1 Year)",
- 
- -- Size categories
- SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS "Large Files (>1GB)",
- 
- -- Duplicates
- SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates"
-
-FROM 
- STORE('/')
-WHERE 
- ClassID = 'idxobject'
-GROUP BY 
- COMPONENTS(parentPath, 3)
-ORDER BY 
- "Total Size (GB)" DESC
-""".strip()
+            report_name = arguments.get("report_name")
+            workflow_name = arguments.get("workflow_name")
             
-            self.logger.info("Executing data sources overview query")
+            # Handle list requests
+            if report_name == "list":
+                return self._list_available_reports()
+            elif workflow_name == "list":
+                return self._list_available_workflows()
+            
+            # Execute single report
+            if report_name:
+                return await self._execute_single_report(report_name)
+            
+            # Execute workflow
+            if workflow_name:
+                return await self._execute_analysis_workflow(workflow_name)
+            
+            # No valid parameters provided
+            return {
+                "content": [{
+                    "type": "text", 
+                    "text": "Please specify either 'report_name' or 'workflow_name'. Use 'list' to see available options."
+                }],
+                "isError": True
+            }
+            
+        except Exception as e:
+            error_msg = f"Error in run_aparavi_report: {format_error_message(e)}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+
+    def _list_available_reports(self) -> Dict[str, Any]:
+        """List all available APARAVI reports."""
+        report_list = "# Available APARAVI Reports\n\n"
+        
+        for report_name, report_config in self.aparavi_reports.items():
+            description = report_config.get("description", "No description available")
+            keywords = ", ".join(report_config.get("keywords", []))
+            report_list += f"**{report_name}**\n"
+            report_list += f"- Description: {description}\n"
+            report_list += f"- Keywords: {keywords}\n\n"
+        
+        return {
+            "content": [{"type": "text", "text": report_list}]
+        }
+    
+    def _list_available_workflows(self) -> Dict[str, Any]:
+        """List all available analysis workflows."""
+        workflow_list = "# Available Analysis Workflows\n\n"
+        
+        for workflow_name, workflow_config in self.analysis_workflows.items():
+            description = workflow_config.get("description", "No description available")
+            reports = ", ".join(workflow_config.get("reports", []))
+            workflow_list += f"**{workflow_name}**\n"
+            workflow_list += f"- Description: {description}\n"
+            workflow_list += f"- Reports: {reports}\n\n"
+        
+        return {
+            "content": [{"type": "text", "text": workflow_list}]
+        }
+    
+    async def _execute_single_report(self, report_name: str) -> Dict[str, Any]:
+        """Execute a single APARAVI report."""
+        self.logger.info(f"Executing single report: {report_name}")
+        
+        # Check if report exists
+        if report_name not in self.aparavi_reports:
+            available_reports = ", ".join(self.aparavi_reports.keys())
+            error_msg = f"Report '{report_name}' not found. Available reports: {available_reports}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        try:
+            report_config = self.aparavi_reports[report_name]
+            aql_query = report_config["query"]
+            description = report_config.get("description", "")
+            
+            self.logger.info(f"Executing AQL query for {report_name}")
             
             # Execute the AQL query
             result = await self.aparavi_client.execute_query(aql_query, format_type="json")
@@ -252,15 +429,17 @@ ORDER BY
                 # Return raw JSON response for the agent to interpret
                 import json
                 json_response = json.dumps(result, indent=2)
-                self.logger.info(f"Data sources overview query executed successfully")
+                self.logger.info(f"Report {report_name} executed successfully")
                 
                 return {
-                    "content": [{"type": "text", "text": f"# APARAVI Data Sources Overview\n\nRaw JSON Response:\n```json\n{json_response}\n```"}]
+                    "content": [{
+                        "type": "text", 
+                        "text": f"# APARAVI Report: {report_name}\n\n{description}\n\nRaw JSON Response:\n```json\n{json_response}\n```"
+                    }]
                 }
-                
             else:
                 # Handle error response
-                error_msg = "Failed to generate data sources overview report"
+                error_msg = f"Failed to execute report '{report_name}'"
                 if isinstance(result, str):
                     error_msg += f": {result}"
                 elif isinstance(result, dict):
@@ -273,114 +452,85 @@ ORDER BY
                 }
                 
         except Exception as e:
-            error_msg = f"Error generating data sources overview: {format_error_message(e)}"
+            error_msg = f"Error executing report '{report_name}': {format_error_message(e)}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],
                 "isError": True
             }
-
-    async def _handle_subfolder_overview(self) -> Dict[str, Any]:
-        """Handle subfolder overview tool request."""
-        try:
-            self.logger.info("Generating subfolder overview report")
-            
-            # AQL query for subfolder analysis - EXACT from reference documentation
-            aql_query = """
-SELECT    
-  COMPONENTS(parentPath, 7) AS Subfolder,
-  SUM(size) as "Size",
-  COUNT(name) as "Count"
-WHERE ClassID LIKE 'idxobject'
-GROUP BY Subfolder
-ORDER BY SUM(size) DESC
-"""
-            
-            # Execute the AQL query
-            result = await self.aparavi_client.execute_query(aql_query, format_type="json")
-            
-            if isinstance(result, dict) and result.get("status") == "OK":
-                # Return raw JSON response for the agent to interpret
-                import json
-                json_response = json.dumps(result, indent=2)
-                self.logger.info(f"Subfolder overview query executed successfully")
-                
-                return {
-                    "content": [{"type": "text", "text": f"# APARAVI Subfolder Overview\n\nRaw JSON Response:\n```json\n{json_response}\n```"}]
-                }
-            else:
-                # Handle error response
-                error_msg = f"Failed to execute subfolder overview query. Response: {result}"
-                self.logger.error(error_msg)
-                return {
-                    "content": [{"type": "text", "text": error_msg}],
-                    "isError": True
-                }
-                
-        except Exception as e:
-            error_msg = f"Error generating subfolder overview: {format_error_message(e)}"
+    
+    async def _execute_analysis_workflow(self, workflow_name: str) -> Dict[str, Any]:
+        """Execute an analysis workflow (multiple related reports)."""
+        self.logger.info(f"Executing analysis workflow: {workflow_name}")
+        
+        # Check if workflow exists
+        if workflow_name not in self.analysis_workflows:
+            available_workflows = ", ".join(self.analysis_workflows.keys())
+            error_msg = f"Workflow '{workflow_name}' not found. Available workflows: {available_workflows}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],
                 "isError": True
             }
-
-    async def _handle_file_type_extension_summary(self) -> Dict[str, Any]:
-        """Handle file type extension summary tool request."""
+        
         try:
-            self.logger.info("Generating file type extension summary report")
+            workflow_config = self.analysis_workflows[workflow_name]
+            workflow_description = workflow_config.get("description", "")
+            report_names = workflow_config.get("reports", [])
             
-            # AQL query for file type/extension analysis - EXACT from reference documentation
-            aql_query = """
-SELECT
- CASE
-   WHEN extension IS NULL THEN 'No Extension'
-   WHEN extension = '' THEN 'No Extension'
-   ELSE extension
- END AS "File Type",
- COUNT(name) AS "File Count",
- SUM(size) AS "Total Size (Bytes)",
- SUM(size)/1048576 AS "Total Size (MB)",
- AVG(size)/1048576 AS "Average File Size (MB)",
- MIN(size)/1048576 AS "Smallest File (MB)",
- MAX(size)/1048576 AS "Largest File (MB)"
-FROM 
- STORE('/')
-WHERE
- ClassID = 'idxobject'
-GROUP BY
- CASE
-   WHEN extension IS NULL THEN 'No Extension'
-   WHEN extension = '' THEN 'No Extension'
-   ELSE extension
- END
-ORDER BY
- SUM(size) DESC
-"""
-            
-            # Execute the AQL query
-            result = await self.aparavi_client.execute_query(aql_query, format_type="json")
-            
-            if isinstance(result, dict) and result.get("status") == "OK":
-                # Return raw JSON response for the agent to interpret
-                import json
-                json_response = json.dumps(result, indent=2)
-                self.logger.info(f"File type extension summary query executed successfully")
-                
-                return {
-                    "content": [{"type": "text", "text": f"# APARAVI File Type / Extension Summary\n\nRaw JSON Response:\n```json\n{json_response}\n```"}]
-                }
-            else:
-                # Handle error response
-                error_msg = f"Failed to execute file type extension summary query. Response: {result}"
+            if not report_names:
+                error_msg = f"Workflow '{workflow_name}' has no reports defined"
                 self.logger.error(error_msg)
                 return {
                     "content": [{"type": "text", "text": error_msg}],
                     "isError": True
                 }
+            
+            # Execute all reports in the workflow
+            workflow_results = []
+            workflow_results.append(f"# APARAVI Analysis Workflow: {workflow_name}\n")
+            workflow_results.append(f"{workflow_description}\n")
+            workflow_results.append(f"Executing {len(report_names)} reports...\n\n")
+            
+            for i, report_name in enumerate(report_names, 1):
+                self.logger.info(f"Executing workflow report {i}/{len(report_names)}: {report_name}")
                 
+                # Check if report exists
+                if report_name not in self.aparavi_reports:
+                    workflow_results.append(f"## Report {i}: {report_name} (SKIPPED - Not Found)\n\n")
+                    continue
+                
+                try:
+                    report_config = self.aparavi_reports[report_name]
+                    aql_query = report_config["query"]
+                    report_description = report_config.get("description", "")
+                    
+                    # Execute the AQL query
+                    result = await self.aparavi_client.execute_query(aql_query, format_type="json")
+                    
+                    if isinstance(result, dict) and result.get("status") == "OK":
+                        import json
+                        json_response = json.dumps(result, indent=2)
+                        workflow_results.append(f"## Report {i}: {report_name}\n")
+                        workflow_results.append(f"{report_description}\n\n")
+                        workflow_results.append(f"```json\n{json_response}\n```\n\n")
+                    else:
+                        error_info = result.get('message', 'Unknown error') if isinstance(result, dict) else str(result)
+                        workflow_results.append(f"## Report {i}: {report_name} (ERROR)\n")
+                        workflow_results.append(f"Error: {error_info}\n\n")
+                        
+                except Exception as e:
+                    workflow_results.append(f"## Report {i}: {report_name} (ERROR)\n")
+                    workflow_results.append(f"Error: {format_error_message(e)}\n\n")
+            
+            self.logger.info(f"Workflow {workflow_name} completed")
+            
+            return {
+                "content": [{"type": "text", "text": "".join(workflow_results)}]
+            }
+            
         except Exception as e:
-            error_msg = f"Error generating file type extension summary: {format_error_message(e)}"
+            error_msg = f"Error executing workflow '{workflow_name}': {format_error_message(e)}"
             self.logger.error(error_msg)
             return {
                 "content": [{"type": "text", "text": error_msg}],

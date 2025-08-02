@@ -1,0 +1,246 @@
+{
+  "reports": {
+    "data_sources_overview": {
+      "description": "Comprehensive analysis of data sources including size, activity indicators, and file categorization metrics",
+      "keywords": ["data source", "storage distribution", "file activity", "recent files", "stale files", "large files", "duplicates"],
+      "business_questions": [
+        "Where is my data stored and how is it distributed?",
+        "Which sources have recent activity vs stale data?", 
+        "Which sources contain large files or many duplicates?"
+      ],
+      "combine_with": ["classification_summary_by_source", "duplicate_file_summary"],
+      "query": "SELECT COMPONENTS(parentPath, 3) AS \"Data Source\", SUM(size)/1073741824 AS \"Total Size (GB)\", COUNT(name) AS \"File Count\", AVG(size)/1048576 AS \"Average File Size (MB)\", SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Files Created Last 30 Days\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Stale Files (>1 Year)\", SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS \"Large Files (>1GB)\", SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS \"Files with Duplicates\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY COMPONENTS(parentPath, 3) ORDER BY \"Total Size (GB)\" DESC"
+    },
+    "subfolder_overview": {
+      "description": "Analyzes subfolder structure showing size and file count distribution across deeper directory levels",
+      "keywords": ["subfolder", "directory structure", "folder depth", "file count", "storage size"],
+      "business_questions": [
+        "Which subfolders consume the most storage?",
+        "Are there deeply nested folders with significant data accumulation?",
+        "Where should cleanup efforts be targeted?"
+      ],
+      "combine_with": ["file_type_extension_summary", "classification_summary_by_source"],
+      "query": "SELECT COMPONENTS(parentPath, 7) AS Subfolder, SUM(size) as \"Size\", COUNT(name) as \"Count\" WHERE ClassID LIKE 'idxobject' GROUP BY Subfolder ORDER BY SUM(size) DESC"
+    },
+    "file_type_extension_summary": {
+      "description": "Comprehensive analysis of file types including size metrics, distribution, and file size ranges",
+      "keywords": ["extension", "file type", "format analysis", "file size distribution"],
+      "business_questions": [
+        "What file types consume the most storage?",
+        "What's the size distribution across different file formats?",
+        "Which file types should be prioritized for policy reviews?"
+      ],
+      "combine_with": ["classification_summary_by_source", "duplicate_file_summary"],
+      "query": "SELECT CASE WHEN extension IS NULL THEN 'No Extension' WHEN extension = '' THEN 'No Extension' ELSE extension END AS \"File Type\", COUNT(name) AS \"File Count\", SUM(size) AS \"Total Size (Bytes)\", SUM(size)/1048576 AS \"Total Size (MB)\", AVG(size)/1048576 AS \"Average File Size (MB)\", MIN(size)/1048576 AS \"Smallest File (MB)\", MAX(size)/1048576 AS \"Largest File (MB)\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY CASE WHEN extension IS NULL THEN 'No Extension' WHEN extension = '' THEN 'No Extension' ELSE extension END ORDER BY SUM(size) DESC"
+    },
+    "classification_summary_by_source": {
+      "description": "Shows classified files grouped by data source and classification type, excluding unclassified files",
+      "keywords": ["classification", "pii", "sensitive data", "category", "data source"],
+      "business_questions": [
+        "Where is sensitive or regulated data located?",
+        "Which sources contain the most classified information?",
+        "What's the size distribution of classified data by location?"
+      ],
+      "combine_with": ["data_sources_overview", "monthly_data_growth"],
+      "query": "SELECT classification AS \"Classification Type\", COUNT(name) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\", COMPONENTS(parentPath, 3) AS \"Primary Location\" FROM STORE('/') WHERE ClassID = 'idxobject' AND classifications NOT LIKE '%Unclassified%' GROUP BY classification, COMPONENTS(parentPath, 3) ORDER BY \"File Count\" DESC"
+    },
+    "duplicate_file_summary": {
+      "description": "Comprehensive infrastructure-wide duplicate analysis including severity, size categories, and potential savings",
+      "keywords": ["duplicate files", "deduplication", "storage waste", "optimization", "space savings"],
+      "business_questions": [
+        "How much storage is being wasted by duplicate files?",
+        "What's the severity distribution of duplicates?",
+        "Which size categories have the most duplication waste?"
+      ],
+      "combine_with": ["duplicate_file_summary_detailed", "file_type_extension_summary"],
+      "query": "SELECT COUNT(*) AS \"Total Files Analyzed\", SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS \"Files with Duplicates\", SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END) AS \"Total Duplicate Instances\", SUM(size)/1073741824 AS \"Total Storage Used (GB)\", SUM(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1073741824 AS \"Potential Space Savings (GB)\", SUM(CASE WHEN dupCount > 1 THEN size * dupCount ELSE 0 END)/1073741824 AS \"Total Duplicate Storage (GB)\", SUM(CASE WHEN dupCount = 2 THEN 1 ELSE 0 END) AS \"Files with 2 Copies\", SUM(CASE WHEN dupCount BETWEEN 3 AND 5 THEN 1 ELSE 0 END) AS \"Files with 3-5 Copies\", SUM(CASE WHEN dupCount BETWEEN 6 AND 10 THEN 1 ELSE 0 END) AS \"Files with 6-10 Copies\", SUM(CASE WHEN dupCount > 10 THEN 1 ELSE 0 END) AS \"Files with 10+ Copies\", MAX(dupCount) AS \"Highest Duplicate Count\", SUM(CASE WHEN dupCount > 1 AND size > 1073741824 THEN 1 ELSE 0 END) AS \"Large Duplicates (>1GB)\", SUM(CASE WHEN dupCount > 1 AND size BETWEEN 104857600 AND 1073741824 THEN 1 ELSE 0 END) AS \"Medium Duplicates (100MB-1GB)\", SUM(CASE WHEN dupCount > 1 AND size < 104857600 THEN 1 ELSE 0 END) AS \"Small Duplicates (<100MB)\", MAX(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1048576 AS \"Largest Single File Waste (MB)\", SUM(CASE WHEN dupCount > 1 AND CATEGORY IS NOT NULL THEN 1 ELSE 0 END) AS \"Categorized Duplicates\", SUM(CASE WHEN dupCount > 1 AND CATEGORY IS NULL THEN 1 ELSE 0 END) AS \"Uncategorized Duplicates\" FROM STORE('/') WHERE ClassID = 'idxobject'"
+    },
+    "classifications_by_age": {
+      "description": "Analyzes classified files by age ranges based on last access time, showing aging patterns of sensitive data",
+      "keywords": ["classification", "data age", "access patterns", "file lifecycle"],
+      "business_questions": [
+        "How old is our classified data?",
+        "Which age ranges contain the most sensitive information?",
+        "Are we retaining stale classified data?"
+      ],
+      "combine_with": ["yearly_data_growth", "monthly_data_growth"],
+      "query": "SELECT CASE WHEN (cast(NOW() as number) - accessTime) < (365 * 24 * 60 * 60) THEN 'Under 1 Year' WHEN (cast(NOW() as number) - accessTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN '1-2 Years' WHEN (cast(NOW() as number) - accessTime) BETWEEN (730 * 24 * 60 * 60) AND (1825 * 24 * 60 * 60) THEN '2-5 Years' ELSE '5+ Years' END AS \"Age Range\", classification AS \"Classification Type\", COUNT(*) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\", AVG(size)/1048576 AS \"Average File Size (MB)\" FROM STORE('/') WHERE ClassID = 'idxobject' AND accessTime IS NOT NULL AND classification IS NOT NULL GROUP BY CASE WHEN (cast(NOW() as number) - accessTime) < (365 * 24 * 60 * 60) THEN 'Under 1 Year' WHEN (cast(NOW() as number) - accessTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN '1-2 Years' WHEN (cast(NOW() as number) - accessTime) BETWEEN (730 * 24 * 60 * 60) AND (1825 * 24 * 60 * 60) THEN '2-5 Years' ELSE '5+ Years' END, classification ORDER BY \"Age Range\", \"File Count\" DESC"
+    },
+    "classifications_by_permissions": {
+      "description": "Correlates file classifications with OS-level access permissions to identify security risks",
+      "keywords": ["access control", "osPermission", "sensitive data", "classification", "security risk"],
+      "business_questions": [
+        "Are sensitive files overly accessible?",
+        "What permission levels exist on regulated files?",
+        "Do we need to restrict access based on data classification?"
+      ],
+      "combine_with": ["classifications_by_owner", "access_permissions_categories"],
+      "query": "SELECT osPermission AS \"User Permission\", classification AS \"Classification\", COUNT(*) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\", AVG(size)/1048576 AS \"Average File Size (MB)\" FROM STORE('/') WHERE ClassID = 'idxobject' AND classifications NOT LIKE '%Unclassified%' AND osPermission IS NOT NULL GROUP BY osPermission, classification ORDER BY \"File Count\" DESC"
+    },
+    "classifications_by_owner": {
+      "description": "Groups classified files by their owner to understand data ownership patterns and accountability",
+      "keywords": ["classification", "ownership", "accountability", "data owner", "responsibility"],
+      "business_questions": [
+        "Who owns the most sensitive data?",
+        "Which users are responsible for high-risk files?",
+        "How is classified data distributed among users?"
+      ],
+      "combine_with": ["data_owner_summary", "user_owner_file_categories"],
+      "query": "SELECT osOwner AS \"Owner\", classification AS \"Primary Classification\", COUNT(*) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\", AVG(size)/1048576 AS \"Average File Size (MB)\" FROM STORE('/') WHERE ClassID = 'idxobject' AND classifications NOT LIKE '%Unclassified%' AND osOwner IS NOT NULL GROUP BY osOwner, classification ORDER BY \"File Count\" DESC"
+    },
+    "monthly_data_growth": {
+      "description": "Tracks monthly file creation patterns by category to understand data growth trends",
+      "keywords": ["data growth", "monthly trends", "category", "createTime", "file creation patterns"],
+      "business_questions": [
+        "How is data growing over time by category?",
+        "Which categories are growing the fastest?",
+        "Are we creating new content in specific categories monthly?"
+      ],
+      "combine_with": ["classification_summary_by_source", "yearly_data_growth"],
+      "query": "SELECT YEAR(createTime) AS \"Year\", MONTH(createTime) AS \"Month\", CATEGORY AS \"File Category\", COUNT(name) AS \"Files Added\", SUM(size)/1073741824 AS \"Size Added (GB)\" FROM STORE('/') WHERE ClassID = 'idxobject' AND createTime IS NOT NULL AND CATEGORY IS NOT NULL GROUP BY YEAR(createTime), MONTH(createTime), CATEGORY ORDER BY \"Year\" DESC, \"Month\" DESC, \"Size Added (GB)\" DESC"
+    },
+    "user_owner_file_categories": {
+      "description": "Analyzes file categories by owner for files created since 2024, showing user activity patterns",
+      "keywords": ["user activity", "osOwner", "file owner", "category", "recent activity"],
+      "business_questions": [
+        "Which users are creating files in specific categories?",
+        "How are file categories distributed by user?",
+        "Who are the most active users by data volume?"
+      ],
+      "combine_with": ["classifications_by_owner", "access_permissions_categories"],
+      "query": "SELECT osOwner AS \"User/Owner\", CATEGORY AS \"File Category\", COUNT(name) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\" FROM STORE('/') WHERE createTime >= '2024-01-01' AND ClassID = 'idxobject' AND CATEGORY IS NOT NULL GROUP BY osOwner, CATEGORY ORDER BY \"Total Size (GB)\" DESC"
+    },
+    "access_permissions_categories": {
+      "description": "Maps file categories to OS permissions for files created since 2024, analyzing permission patterns",
+      "keywords": ["access permissions", "file categories", "osPermission", "security patterns"],
+      "business_questions": [
+        "How are permission settings distributed across categories?",
+        "Are certain categories consistently over-permissioned?",
+        "What's the relationship between file category and access control?"
+      ],
+      "combine_with": ["classifications_by_owner", "classifications_by_permissions"],
+      "query": "SELECT osPermission AS \"User\", CATEGORY AS \"File Category\", COUNT(name) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\" FROM STORE('/') WHERE createTime >= '2024-01-01' AND ClassID = 'idxobject' AND CATEGORY IS NOT NULL AND osPermission IS NOT NULL GROUP BY osPermission, CATEGORY ORDER BY \"Total Size (GB)\" DESC"
+    },
+    "yearly_data_growth": {
+      "description": "Simple yearly data creation analysis showing file count and size trends over time",
+      "keywords": ["data growth", "yearly trend", "createTime", "file volume", "historical analysis"],
+      "business_questions": [
+        "How is our data footprint evolving year over year?",
+        "Are recent years showing accelerated growth?",
+        "When did major data creation events occur?"
+      ],
+      "combine_with": ["monthly_data_growth", "classifications_by_age"],
+      "query": "SELECT YEAR(createTime) as \"Creation Year\", COUNT(name) as \"File Count\", SUM(size) as \"Total Size (Bytes)\", SUM(size)/1048576 as \"Total Size (MB)\", AVG(size) as \"Average File Size (Bytes)\" WHERE ClassID LIKE 'idxobject' GROUP BY YEAR(createTime) ORDER BY YEAR(createTime) DESC"
+    },
+    "simple_classification_summary": {
+      "description": "Basic classification overview showing file count and size for all classification types including unclassified",
+      "keywords": ["classification", "tagging", "data categories", "sensitive data", "overview"],
+      "business_questions": [
+        "How much of our data is classified vs unclassified?",
+        "What are the most common classification types?",
+        "What's the storage distribution across classifications?"
+      ],
+      "combine_with": ["classification_summary_by_source", "classifications_by_owner"],
+      "query": "SELECT CASE WHEN classification IS NULL THEN 'Unclassified' WHEN classification = '' THEN 'Unclassified' ELSE classification END as \"Classification\", COUNT(name) as \"File Count\", SUM(size) as \"Total Size (Bytes)\", SUM(size)/1048576 as \"Total Size (MB)\" WHERE ClassID LIKE 'idxobject' GROUP BY CASE WHEN classification IS NULL THEN 'Unclassified' WHEN classification = '' THEN 'Unclassified' ELSE classification END ORDER BY COUNT(name) DESC"
+    },
+    "data_sources_modified": {
+      "description": "Analyzes data sources by modification age ranges, showing activity patterns and data freshness",
+      "keywords": ["last modified", "activity", "data source", "freshness", "modification patterns"],
+      "business_questions": [
+        "Which data sources are actively changing?",
+        "How much data in each source is stale vs recently modified?",
+        "What's the modification age distribution across sources?"
+      ],
+      "combine_with": ["file_type_activity", "data_sources_created", "data_sources_accessed"],
+      "query": "SELECT COMPONENTS(parentPath, 3) AS \"Data Source\", SUM(size)/1073741824 AS \"Total Size (GB)\", COUNT(name) AS \"Total Count\", SUM(CASE WHEN modifyTime IS NULL THEN 1 ELSE 0 END) AS \"Unknown Modified\", SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Modified <1 Year\", SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Modified 1-2 Years\", SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Modified 2-3 Years\", SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Modified 3-4 Years\", SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Modified 4+ Years\", SUM(CASE WHEN modifyTime IS NULL THEN size ELSE 0 END)/1073741824 AS \"Unknown Modified Size (GB)\", SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Recent Modified Size (GB)\", SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Very Old Modified Size (GB)\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY COMPONENTS(parentPath, 3) ORDER BY \"Total Size (GB)\" DESC"
+    },
+    "data_sources_created": {
+      "description": "Analyzes data sources by creation age ranges, showing data source lifecycle patterns",
+      "keywords": ["creation time", "data source", "file age", "lifecycle", "data history"],
+      "business_questions": [
+        "How long has data existed in each source?",
+        "Which repositories are hosting legacy vs recent files?",
+        "What's the creation age distribution of our data assets?"
+      ],
+      "combine_with": ["data_sources_accessed", "classifications_by_age"],
+      "query": "SELECT COMPONENTS(parentPath, 3) AS \"Data Source\", SUM(size)/1073741824 AS \"Total Size (GB)\", COUNT(name) AS \"Total Count\", SUM(CASE WHEN createTime IS NULL THEN 1 ELSE 0 END) AS \"Unknown Created\", SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Created <1 Year\", SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Created 1-2 Years\", SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Created 2-3 Years\", SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Created 3-4 Years\", SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Created 4+ Years\", SUM(CASE WHEN createTime IS NULL THEN size ELSE 0 END)/1073741824 AS \"Unknown Created Size (GB)\", SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Recent Created Size (GB)\", SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Very Old Created Size (GB)\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY COMPONENTS(parentPath, 3) ORDER BY \"Total Size (GB)\" DESC"
+    },
+    "data_sources_accessed": {
+      "description": "Analyzes data sources by access patterns, showing usage trends and identifying stale data",
+      "keywords": ["access time", "user behavior", "data value", "usage recency", "stale data"],
+      "business_questions": [
+        "Which sources are actively accessed vs abandoned?",
+        "How much storage is consumed by unused data?",
+        "What's the access age distribution across data sources?"
+      ],
+      "combine_with": ["data_sources_modified", "data_owner_summary"],
+      "query": "SELECT COMPONENTS(parentPath, 3) AS \"Data Source\", SUM(size)/1073741824 AS \"Total Size (GB)\", COUNT(name) AS \"Total Count\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Accessed Last 30 Days\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (30 * 24 * 60 * 60) AND (90 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Accessed 1-3 Months Ago\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (90 * 24 * 60 * 60) AND (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Accessed 3-12 Months Ago\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Not Accessed >1 Year\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Recently Accessed Size (GB)\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Stale Access Size (GB)\", AVG((cast(NOW() as number) - accessTime)/(24 * 60 * 60)) AS \"Average Days Since Access\" FROM STORE('/') WHERE ClassID = 'idxobject' AND accessTime IS NOT NULL GROUP BY COMPONENTS(parentPath, 3) ORDER BY \"Total Size (GB)\" DESC"
+    },
+    "file_type_activity": {
+      "description": "Categorizes file types by activity status, showing which formats are actively used vs stale",
+      "keywords": ["file type", "recent activity", "modification", "extension", "usage patterns"],
+      "business_questions": [
+        "Which file types are currently in use vs dormant?",
+        "What formats should be archived or migrated?",
+        "Are certain file types consistently stale across the environment?"
+      ],
+      "combine_with": ["file_type_extension_summary", "yearly_data_growth"],
+      "query": "SELECT extension AS \"File Extension\", CASE WHEN (cast(NOW() as number) - accessTime) > (180 * 24 * 60 * 60) THEN 'Stale (Not Accessed 6+ Months)' WHEN (cast(NOW() as number) - modifyTime) > (180 * 24 * 60 * 60) THEN 'Read-Only (Not Modified 6+ Months)' WHEN (cast(NOW() as number) - accessTime) < (7 * 24 * 60 * 60) THEN 'Very Active (Accessed This Week)' ELSE 'Moderately Active' END AS \"Activity Status\", COUNT(name) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\", AVG(size)/1048576 AS \"Average File Size (MB)\" FROM STORE('/') WHERE (cast(NOW() as number) - createTime) > (180 * 24 * 60 * 60) AND ClassID = 'idxobject' GROUP BY extension, CASE WHEN (cast(NOW() as number) - accessTime) > (180 * 24 * 60 * 60) THEN 'Stale (Not Accessed 6+ Months)' WHEN (cast(NOW() as number) - modifyTime) > (180 * 24 * 60 * 60) THEN 'Read-Only (Not Modified 6+ Months)' WHEN (cast(NOW() as number) - accessTime) < (7 * 24 * 60 * 60) THEN 'Very Active (Accessed This Week)' ELSE 'Moderately Active' END ORDER BY extension"
+    },
+    "duplicate_file_summary_detailed": {
+      "description": "Detailed duplicate analysis by age groups, showing duplication patterns across different file generations",
+      "keywords": ["duplicate hash", "storage waste", "age-based analysis", "deduplication by timeframe"],
+      "business_questions": [
+        "Which age groups have the most duplication waste?",
+        "Are older files more likely to be duplicated?",
+        "What's the potential savings by targeting specific age ranges?"
+      ],
+      "combine_with": ["duplicate_file_summary", "file_type_extension_summary"],
+      "query": "SELECT CASE WHEN createTime IS NULL THEN 'Unknown Age' WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 'Created <1 Year' WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 'Created 1-2 Years' WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 'Created 2-3 Years' WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 'Created 3-4 Years' ELSE 'Created 4+ Years' END AS \"Age Group\", COUNT(*) AS \"Total Files in Age Group\", SUM(size)/1073741824 AS \"Total Storage (GB)\", SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS \"Files with Duplicates\", SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END) AS \"Duplicate Instances\", SUM(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1073741824 AS \"Potential Space Savings (GB)\", SUM(CASE WHEN dupCount = 2 THEN 1 ELSE 0 END) AS \"Files with 2 Copies\", SUM(CASE WHEN dupCount BETWEEN 3 AND 5 THEN 1 ELSE 0 END) AS \"Files with 3-5 Copies\", SUM(CASE WHEN dupCount > 10 THEN 1 ELSE 0 END) AS \"Files with 10+ Copies\", AVG(CASE WHEN dupCount > 1 THEN dupCount ELSE 0 END) AS \"Average Duplicates\", AVG(CASE WHEN dupCount > 1 THEN size ELSE 0 END)/1048576 AS \"Average Duplicate File Size (MB)\", MAX(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1048576 AS \"Largest Single File Waste (MB)\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY CASE WHEN createTime IS NULL THEN 'Unknown Age' WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 'Created <1 Year' WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 'Created 1-2 Years' WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 'Created 2-3 Years' WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 'Created 3-4 Years' ELSE 'Created 4+ Years' END ORDER BY \"Potential Space Savings (GB)\" DESC"
+    },
+    "data_owner_summary": {
+      "description": "Aggregates file ownership showing which users consume the most storage, limited to top 50 owners",
+      "keywords": ["ownership", "osOwner", "storage use", "user footprint", "top consumers"],
+      "business_questions": [
+        "Who owns the most data in our environment?",
+        "How is storage consumption distributed among users?",
+        "Which users should be targeted for storage optimization?"
+      ],
+      "combine_with": ["classifications_by_owner", "duplicate_file_summary"],
+      "query": "SELECT CASE WHEN osOwner IS NULL THEN 'Unowned' WHEN osOwner = '' THEN 'Unowned' ELSE osOwner END as \"Owner\", COUNT(name) as \"File Count\", SUM(size) as \"Total Size (Bytes)\", SUM(size)/1048576 as \"Total Size (MB)\", AVG(size) as \"Average File Size (Bytes)\" WHERE ClassID LIKE 'idxobject' GROUP BY CASE WHEN osOwner IS NULL THEN 'Unowned' WHEN osOwner = '' THEN 'Unowned' ELSE osOwner END ORDER BY SUM(size) DESC LIMIT 50"
+    },
+    "file_type_category_summary_detailed": {
+      "description": "Comprehensive analysis of Aparavi categories including size distribution, activity metrics, and duplicate analysis",
+      "keywords": ["aparavi category", "size distribution", "activity analysis", "file lifecycle", "duplicate waste"],
+      "business_questions": [
+        "How are files distributed across Aparavi categories?",
+        "Which categories contain the most stale or duplicate data?",
+        "What's the activity level and storage efficiency by category?"
+      ],
+      "combine_with": ["file_type_extension_summary", "classification_summary_by_source"],
+      "query": "SELECT COALESCE(CATEGORY, 'Uncategorized') AS \"Aparavi Category\", COUNT(name) AS \"File Count\", SUM(size)/1073741824 AS \"Total Size (GB)\", AVG(size)/1048576 AS \"Average File Size (MB)\", MIN(size)/1048576 AS \"Smallest File (MB)\", MAX(size)/1048576 AS \"Largest File (MB)\", SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS \"Large Files (>1GB)\", SUM(CASE WHEN size BETWEEN 104857600 AND 1073741824 THEN 1 ELSE 0 END) AS \"Medium Files (100MB-1GB)\", SUM(CASE WHEN size < 1048576 THEN 1 ELSE 0 END) AS \"Small Files (<1MB)\", SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Created Last 30 Days\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Not Accessed 1+ Years\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS \"Stale Data Size (GB)\", SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS \"Files with Duplicates\", SUM(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1073741824 AS \"Duplicate Waste (GB)\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY COALESCE(CATEGORY, 'Uncategorized') ORDER BY \"Total Size (GB)\" DESC"
+    }
+  },
+  "workflows": {
+    "storage_audit": {
+      "reports": ["data_sources_overview", "duplicate_file_summary", "file_type_extension_summary"],
+      "description": "Comprehensive storage optimization analysis"
+    },
+    "security_review": {
+      "reports": ["classifications_by_permissions", "classifications_by_owner", "classifications_by_age"],
+      "description": "Security posture assessment of sensitive data"
+    },
+    "data_lifecycle": {
+      "reports": ["data_sources_created", "data_sources_modified", "data_sources_accessed"], 
+      "description": "Complete data lifecycle and usage analysis"
+    },
+    "growth_analysis": {
+      "reports": ["yearly_data_growth", "monthly_data_growth", "file_type_activity"],
+      "description": "Historical growth trends and patterns"
+    },
+    "compliance_check": {
+      "reports": ["simple_classification_summary", "classification_summary_by_source"],
+      "description": "Data classification and compliance overview"
+    }
+  }
+}
