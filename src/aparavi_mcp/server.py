@@ -279,22 +279,6 @@ ORDER BY
                 "content": [{"type": "text", "text": error_msg}],
                 "isError": True
             }
-    
-
-            
-        else:
-            # Handle error response
-            error_msg = "Failed to generate data sources overview report"
-            if isinstance(result, str):
-                error_msg += f": {result}"
-            elif isinstance(result, dict):
-                error_msg += f": {result.get('message', 'Unknown error')}"
-            
-            self.logger.error(error_msg)
-            return {
-                "content": [{"type": "text", "text": error_msg}],
-                "isError": True
-            }
 
     async def _handle_subfolder_overview(self) -> Dict[str, Any]:
         """Handle subfolder overview tool request."""
