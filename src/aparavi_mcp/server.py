@@ -1136,10 +1136,11 @@ class AparaviMCPServer:
         return response
     
     async def _handle_generate_aql_query(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle generate_aql_query tool requests - intelligent AQL query builder."""
+        """Handle generate_aql_query tool requests - optimized for LLM efficiency."""
         self.logger.debug("Handling generate_aql_query request")
         
         try:
+            # Extract and validate inputs
             business_question = arguments.get("business_question", "").strip()
             desired_fields = arguments.get("desired_fields", [])
             filters = arguments.get("filters", [])
@@ -1154,177 +1155,15 @@ class AparaviMCPServer:
                     "isError": True
                 }
             
-            # Load AQL reference data for intelligent query building
-            aql_ref_path = Path(__file__).parent.parent.parent / "references" / "aql_ref.json"
-            try:
-                with open(aql_ref_path, 'r', encoding='utf-8') as f:
-                    aql_ref = json.load(f)
-                    aql_guide = aql_ref.get("aql_reference_guide", {})
-            except Exception as e:
-                self.logger.warning(f"Could not load AQL reference: {e}")
-                aql_guide = {}
-            
-            # Extract available fields and patterns from reference
-            core_fields = aql_guide.get("core_fields_reference", [])
-            proven_patterns = aql_guide.get("proven_working_patterns", {})
-            common_errors = aql_guide.get("common_error_patterns_solutions", {})
-            
-            # Build intelligent query recommendations
-            response_parts = []
-            response_parts.append(f"# AQL Query Builder for: {business_question}\n")
-            
-            # Analyze the business question for key concepts
-            question_lower = business_question.lower()
-            detected_concepts = []
-            
-            # Detect common concepts
-            if any(word in question_lower for word in ['duplicate', 'duplicates', 'duplicate files']):
-                detected_concepts.append('duplicates')
-            if any(word in question_lower for word in ['large', 'big', 'size', 'storage']):
-                detected_concepts.append('file_size')
-            if any(word in question_lower for word in ['recent', 'new', 'created', 'last']):
-                detected_concepts.append('time_recent')
-            if any(word in question_lower for word in ['old', 'stale', 'unused', 'accessed']):
-                detected_concepts.append('time_old')
-            if any(word in question_lower for word in ['department', 'folder', 'location', 'source']):
-                detected_concepts.append('data_source')
-            if any(word in question_lower for word in ['type', 'extension', 'pdf', 'doc', 'excel']):
-                detected_concepts.append('file_type')
-            if any(word in question_lower for word in ['classification', 'sensitive', 'pii', 'classified']):
-                detected_concepts.append('classification')
-            
-            response_parts.append(f"**Detected Concepts**: {', '.join(detected_concepts) if detected_concepts else 'General file analysis'}\n")
-            
-            # Generate recommended query approach
-            response_parts.append("## Recommended AQL Query Approach\n")
-            
-            # Build SELECT clause recommendations
-            select_fields = []
-            
-            if 'data_source' in detected_concepts:
-                select_fields.append('COMPONENTS(parentPath, 3) AS "Data Source"')
-            if 'file_type' in detected_concepts:
-                select_fields.append('extension AS "File Type"')
-            if 'file_size' in detected_concepts:
-                select_fields.append('SUM(size)/1073741824 AS "Total Size (GB)"')
-                select_fields.append('COUNT(name) AS "File Count"')
-                select_fields.append('AVG(size)/1048576 AS "Average Size (MB)"')
-            if 'duplicates' in detected_concepts:
-                select_fields.append('SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates"')
-                select_fields.append('SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END) AS "Duplicate Instances"')
-            if 'time_recent' in detected_concepts:
-                select_fields.append('SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Recent Files (30 days)"')
-            if 'classification' in detected_concepts:
-                select_fields.append('classification AS "Classification"')
-                select_fields.append('COUNT(*) AS "Count"')
-            
-            # Default fields if none detected
-            if not select_fields:
-                select_fields = ['COUNT(name) AS "File Count"', 'SUM(size)/1073741824 AS "Total Size (GB)"']
-            
-            # Build WHERE clause recommendations
-            where_conditions = ['ClassID = \'idxobject\'']
-            
-            if 'duplicates' in detected_concepts:
-                where_conditions.append('dupCount > 1')
-            if 'file_size' in detected_concepts and 'large' in question_lower:
-                where_conditions.append('size > 104857600')  # > 100MB
-            if 'time_recent' in detected_concepts:
-                where_conditions.append('(cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60)')  # Last 30 days
-            if 'time_old' in detected_concepts:
-                where_conditions.append('(cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60)')  # > 1 year
-            if 'classification' in detected_concepts:
-                where_conditions.append('classification IS NOT NULL AND classification != \'Unclassified\'')
-            
-            # Add user-specified filters
-            for filter_condition in filters:
-                # Basic filter translation (could be enhanced)
-                filter_lower = filter_condition.lower()
-                if 'pdf' in filter_lower:
-                    where_conditions.append('extension = \'pdf\'')
-                elif 'excel' in filter_lower:
-                    where_conditions.append('extension IN (\'xlsx\', \'xls\')')
-                elif 'large' in filter_lower:
-                    where_conditions.append('size > 104857600')
-            
-            # Build GROUP BY clause
-            group_by_fields = []
-            if 'data_source' in detected_concepts:
-                group_by_fields.append('COMPONENTS(parentPath, 3)')
-            if 'file_type' in detected_concepts:
-                group_by_fields.append('extension')
-            if 'classification' in detected_concepts:
-                group_by_fields.append('classification')
-            
-            # Generate the recommended query
-            select_clause = f"SELECT {', '.join(select_fields)}"
-            from_clause = "FROM STORE('/')"
-            where_clause = f"WHERE {' AND '.join(where_conditions)}"
-            group_clause = f"GROUP BY {', '.join(group_by_fields)}" if group_by_fields else ""
-            order_clause = "ORDER BY \"Total Size (GB)\" DESC" if 'file_size' in detected_concepts else "ORDER BY \"File Count\" DESC"
-            limit_clause = "LIMIT 50" if complexity_preference == "simple" else ""
-            
-            # Construct final query
-            query_parts = [select_clause, from_clause, where_clause]
-            if group_clause:
-                query_parts.append(group_clause)
-            query_parts.append(order_clause)
-            if limit_clause:
-                query_parts.append(limit_clause)
-            
-            recommended_query = " ".join(query_parts)
-            
-            response_parts.append("### Generated AQL Query\n")
-            response_parts.append(f"```sql\n{recommended_query}\n```\n")
-            
-            # Add explanation
-            response_parts.append("### Query Explanation\n")
-            response_parts.append(f"- **SELECT**: Returns {', '.join([f.split(' AS ')[1].strip('"') if ' AS ' in f else f for f in select_fields])}\n")
-            response_parts.append(f"- **FROM**: Queries the Aparavi Data Suite file store\n")
-            response_parts.append(f"- **WHERE**: Filters for {', '.join(where_conditions)}\n")
-            if group_by_fields:
-                response_parts.append(f"- **GROUP BY**: Groups results by {', '.join(group_by_fields)}\n")
-            response_parts.append(f"- **ORDER BY**: Sorts results by size or count (descending)\n")
-            if limit_clause:
-                response_parts.append(f"- **LIMIT**: Returns top 50 results for focused analysis\n")
-            
-            # Add field validation if user specified desired fields
-            if desired_fields:
-                response_parts.append("\n### Field Validation\n")
-                valid_fields = [field['field'] for field in core_fields]
-                for field in desired_fields:
-                    if field in valid_fields:
-                        response_parts.append(f"[VALID] **{field}**: Valid Aparavi field\n")
-                    else:
-                        response_parts.append(f"[INVALID] **{field}**: Not a valid Aparavi field. Consider: {', '.join(valid_fields[:5])}...\n")
-            
-            # Add important warnings and tips
-            response_parts.append("\n### Important Notes\n")
-            response_parts.append("- **Always include**: `ClassID = 'idxobject'` for file queries\n")
-            response_parts.append("- **Use GROUP BY**: Instead of DISTINCT for deduplication\n")
-            response_parts.append("- **Time calculations**: Use `cast(NOW() as number)` for time arithmetic\n")
-            response_parts.append("- **Size conversions**: Divide by 1073741824 for GB, 1048576 for MB\n")
-            response_parts.append("- **Test first**: Use `validate_aql_query` before `execute_custom_aql_query`\n")
-            
-            # Add chaining recommendations for complex questions
-            if complexity_preference == "comprehensive" or len(detected_concepts) > 2:
-                response_parts.append("\n### Query Chaining Recommendation\n")
-                response_parts.append("For complex analysis, consider breaking this into smaller, focused queries:\n")
-                response_parts.append("1. **Base analysis**: Run the main query above\n")
-                response_parts.append("2. **Drill-down queries**: Create specific queries for interesting findings\n")
-                response_parts.append("3. **Cross-reference**: Compare results across different dimensions\n")
-            
-            # Add next steps
-            response_parts.append("\n### Next Steps\n")
-            response_parts.append("1. **Validate**: Use `validate_aql_query` to check syntax\n")
-            response_parts.append("2. **Execute**: Use `execute_custom_aql_query` to run the query\n")
-            response_parts.append("3. **Refine**: Adjust filters or fields based on initial results\n")
-            response_parts.append("4. **Chain**: Create follow-up queries for deeper analysis\n")
+            # Use optimized pipeline approach
+            concepts = self._detect_query_concepts(business_question)
+            query_info = self._generate_query_template(concepts, filters, business_question, complexity_preference)
+            response_text = self._format_response(business_question, concepts, query_info, desired_fields)
             
             return {
                 "content": [{
                     "type": "text",
-                    "text": "".join(response_parts)
+                    "text": response_text
                 }]
             }
             
@@ -1336,58 +1175,222 @@ class AparaviMCPServer:
                 "isError": True
             }
     
-    async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle incoming MCP requests."""
-        method = request.get("method", "")
-        params = request.get("params", {})
-        request_id = request.get("id")
-        
-        self.logger.debug(f"Handling request: {method}")
-        
-        try:
-            if method == "initialize":
-                result = await self.handle_initialize(params)
-            elif method == "tools/list":
-                result = await self.handle_list_tools(params)
-            elif method == "tools/call":
-                result = await self.handle_call_tool(params)
-            elif method == "notifications/initialized":
-                # Handle initialization notification (no response needed)
-                self.logger.debug("Received initialization notification")
-                return None  # No response for notifications
-            elif method == "resources/list":
-                # We don't provide resources, return empty list
-                result = {"resources": []}
-            elif method == "prompts/list":
-                # We don't provide prompts, return empty list
-                result = {"prompts": []}
-            else:
-                raise ValueError(f"Unknown method: {method}")
-            
-            # Don't send response for notifications
-            if method.startswith("notifications/"):
-                return None
-                
-            response = {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": result
-            }
-            
-        except Exception as e:
-            error_msg = format_error_message(e, f"Request handling failed for {method}")
-            self.logger.error(error_msg)
-            response = {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32603,
-                    "message": error_msg
-                }
-            }
-        
-        return response
+    # Cache for AQL reference data to avoid repeated file I/O
+    _aql_reference_cache = None
+    _aql_reference_cache_time = None
     
+    def _load_aql_reference(self) -> Dict[str, Any]:
+        """Load and cache AQL reference data for performance."""
+        import time
+        
+        # Cache for 5 minutes to balance performance and freshness
+        if (self._aql_reference_cache is not None and 
+            self._aql_reference_cache_time is not None and
+            time.time() - self._aql_reference_cache_time < 300):
+            return self._aql_reference_cache
+            
+        aql_ref_path = Path(__file__).parent.parent.parent / "references" / "aql_ref.json"
+        try:
+            with open(aql_ref_path, 'r', encoding='utf-8') as f:
+                self._aql_reference_cache = json.load(f)
+                self._aql_reference_cache_time = time.time()
+                return self._aql_reference_cache
+        except Exception as e:
+            self.logger.warning(f"Could not load AQL reference: {e}")
+            return {}
+    
+    def _detect_query_concepts(self, business_question: str) -> Dict[str, Any]:
+        """Detect key concepts from business question using optimized pattern matching."""
+        question_lower = business_question.lower()
+        
+        # Optimized concept detection with weighted scoring
+        concept_patterns = {
+            'duplicates': ['duplicate', 'duplicates', 'duplicate files', 'same file', 'identical'],
+            'file_size': ['large', 'big', 'size', 'storage', 'space', 'gb', 'mb', 'bytes'],
+            'time_recent': ['recent', 'new', 'created', 'last', 'latest', 'today', 'yesterday'],
+            'time_old': ['old', 'stale', 'unused', 'accessed', 'ancient', 'outdated'],
+            'data_source': ['department', 'folder', 'location', 'source', 'path', 'directory'],
+            'file_type': ['type', 'extension', 'pdf', 'doc', 'excel', 'format', 'kind'],
+            'classification': ['classification', 'sensitive', 'pii', 'classified', 'confidential', 'private']
+        }
+        
+        detected = {}
+        for concept, patterns in concept_patterns.items():
+            score = sum(1 for pattern in patterns if pattern in question_lower)
+            if score > 0:
+                detected[concept] = score
+                
+        return detected
+    
+    def _build_select_fields(self, concepts: Dict[str, Any]) -> List[str]:
+        """Build SELECT clause fields based on detected concepts."""
+        fields = []
+        
+        # Template-based field selection for consistency
+        field_templates = {
+            'data_source': 'COMPONENTS(parentPath, 3) AS "Data Source"',
+            'file_type': 'extension AS "File Type"',
+            'file_size': [
+                'SUM(size)/1073741824 AS "Total Size (GB)"',
+                'COUNT(name) AS "File Count"',
+                'AVG(size)/1048576 AS "Average Size (MB)"'
+            ],
+            'duplicates': [
+                'SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates"',
+                'SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END) AS "Duplicate Instances"'
+            ],
+            'time_recent': 'SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Recent Files (30 days)"',
+            'classification': ['classification AS "Classification"', 'COUNT(*) AS "Count"']
+        }
+        
+        for concept in concepts:
+            if concept in field_templates:
+                template = field_templates[concept]
+                if isinstance(template, list):
+                    fields.extend(template)
+                else:
+                    fields.append(template)
+        
+        # Default fields if none detected
+        return fields if fields else ['COUNT(name) AS "File Count"', 'SUM(size)/1073741824 AS "Total Size (GB)"']
+    
+    def _build_where_conditions(self, concepts: Dict[str, Any], filters: List[str], business_question: str) -> List[str]:
+        """Build WHERE clause conditions based on concepts and filters."""
+        conditions = ['ClassID = \'idxobject\'']  # Always required
+        
+        # Concept-based conditions
+        condition_templates = {
+            'duplicates': 'dupCount > 1',
+            'time_recent': '(cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60)',
+            'time_old': '(cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60)',
+            'classification': 'classification IS NOT NULL AND classification != \'Unclassified\''
+        }
+        
+        for concept in concepts:
+            if concept in condition_templates:
+                conditions.append(condition_templates[concept])
+        
+        # Special handling for file size with context
+        if 'file_size' in concepts and 'large' in business_question.lower():
+            conditions.append('size > 104857600')  # > 100MB
+        
+        # Process user filters with templates
+        filter_templates = {
+            'pdf': 'extension = \'pdf\'',
+            'excel': 'extension IN (\'xlsx\', \'xls\')',
+            'word': 'extension IN (\'docx\', \'doc\')',
+            'large': 'size > 104857600'
+        }
+        
+        for filter_condition in filters:
+            filter_lower = filter_condition.lower()
+            for key, template in filter_templates.items():
+                if key in filter_lower:
+                    conditions.append(template)
+                    break
+        
+        return conditions
+    
+    def _build_group_by_fields(self, concepts: Dict[str, Any]) -> List[str]:
+        """Build GROUP BY clause fields based on concepts."""
+        group_fields = []
+        
+        group_templates = {
+            'data_source': 'COMPONENTS(parentPath, 3)',
+            'file_type': 'extension',
+            'classification': 'classification'
+        }
+        
+        for concept in concepts:
+            if concept in group_templates:
+                group_fields.append(group_templates[concept])
+        
+        return group_fields
+    
+    def _generate_query_template(self, concepts: Dict[str, Any], filters: List[str], 
+                                business_question: str, complexity: str) -> Dict[str, str]:
+        """Generate AQL query using template-based approach."""
+        select_fields = self._build_select_fields(concepts)
+        where_conditions = self._build_where_conditions(concepts, filters, business_question)
+        group_fields = self._build_group_by_fields(concepts)
+        
+        # Build query components
+        select_clause = f"SELECT {', '.join(select_fields)}"
+        from_clause = "FROM STORE('/')"
+        where_clause = f"WHERE {' AND '.join(where_conditions)}"
+        group_clause = f"GROUP BY {', '.join(group_fields)}" if group_fields else ""
+        
+        # Smart ordering based on concepts
+        if 'file_size' in concepts:
+            order_clause = "ORDER BY \"Total Size (GB)\" DESC"
+        elif 'duplicates' in concepts:
+            order_clause = "ORDER BY \"Files with Duplicates\" DESC"
+        else:
+            order_clause = "ORDER BY \"File Count\" DESC"
+            
+        limit_clause = "LIMIT 50" if complexity == "simple" else ""
+        
+        # Construct final query
+        query_parts = [select_clause, from_clause, where_clause]
+        if group_clause:
+            query_parts.append(group_clause)
+        query_parts.append(order_clause)
+        if limit_clause:
+            query_parts.append(limit_clause)
+        
+        return {
+            'query': " ".join(query_parts),
+            'select_fields': select_fields,
+            'where_conditions': where_conditions,
+            'group_fields': group_fields,
+            'order_clause': order_clause
+        }
+    
+    def _format_response(self, business_question: str, concepts: Dict[str, Any], 
+                        query_info: Dict[str, str], desired_fields: List[str]) -> str:
+        """Format the response using templates for consistency."""
+        parts = []
+        
+        # Header
+        parts.append(f"# AQL Query Builder for: {business_question}\n")
+        
+        # Concepts
+        concept_names = list(concepts.keys()) if concepts else ['General file analysis']
+        parts.append(f"**Detected Concepts**: {', '.join(concept_names)}\n")
+        
+        # Query
+        parts.append("## Generated AQL Query\n")
+        parts.append(f"```sql\n{query_info['query']}\n```\n")
+        
+        # Explanation
+        parts.append("### Query Explanation\n")
+        field_names = [f.split(' AS ')[1].strip('"') if ' AS ' in f else f for f in query_info['select_fields']]
+        parts.append(f"- **SELECT**: Returns {', '.join(field_names)}\n")
+        parts.append(f"- **WHERE**: Filters for {', '.join(query_info['where_conditions'])}\n")
+        if query_info['group_fields']:
+            parts.append(f"- **GROUP BY**: Groups results by {', '.join(query_info['group_fields'])}\n")
+        
+        # Field validation if requested
+        if desired_fields:
+            aql_ref = self._load_aql_reference()
+            core_fields = aql_ref.get("aql_reference_guide", {}).get("core_fields_reference", [])
+            valid_fields = [field.get('field', '') for field in core_fields if isinstance(field, dict)]
+            
+            parts.append("\n### Field Validation\n")
+            for field in desired_fields:
+                if field in valid_fields:
+                    parts.append(f"✓ **{field}**: Valid Aparavi field\n")
+                else:
+                    parts.append(f"✗ **{field}**: Invalid field. Try: {', '.join(valid_fields[:3])}...\n")
+        
+        # Best practices
+        parts.append("\n### Next Steps\n")
+        parts.append("1. **Validate**: Use `validate_aql_query` to check syntax\n")
+        parts.append("2. **Execute**: Use `execute_custom_aql_query` to run the query\n")
+        parts.append("3. **Refine**: Adjust based on results\n")
+        
+        return "".join(parts)
+
     async def _handle_guide_start_here(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle guide_start_here tool - intelligent entry point and routing assistant."""
         self.logger.info("Processing guide_start_here request")
