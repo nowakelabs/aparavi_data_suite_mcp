@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 
 def setup_logging(log_level: str = "INFO") -> logging.Logger:
     """
-    Set up logging configuration.
+    Set up logging configuration for MCP server.
+    Ensures logging goes to stderr to avoid interfering with JSON-RPC communication on stdout.
     
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -25,15 +26,26 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     logger.handlers.clear()
     
     # Set log level
-    logger.setLevel(getattr(logging, log_level.upper()))
+    try:
+        logger.setLevel(getattr(logging, log_level.upper()))
+    except AttributeError:
+        logger.setLevel(logging.INFO)  # Default to INFO if invalid level
     
-    # Create console handler with formatting
-    handler = logging.StreamHandler()
+    # Create console handler explicitly using stderr to avoid stdout interference
+    import sys
+    handler = logging.StreamHandler(sys.stderr)
+    
+    # Set formatter
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     handler.setFormatter(formatter)
+    
+    # Add handler to logger
     logger.addHandler(handler)
+    
+    # Prevent propagation to root logger to avoid duplicate messages
+    logger.propagate = False
     
     return logger
 

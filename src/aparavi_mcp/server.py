@@ -70,8 +70,11 @@ class AparaviMCPServer:
         """Handle MCP initialize request."""
         self.logger.info("Handling initialize request")
         
+        # Log the initialization parameters for debugging
+        self.logger.debug(f"Initialize params: {params}")
+        
         return {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {
                 "tools": {}
             },
@@ -1548,7 +1551,7 @@ class AparaviMCPServer:
                         "step": 1,
                         "tool": "run_aparavi_report",
                         "parameters": f'report_name="{primary_report}"',
-                        "purpose": f"Get immediate insights for {goal} analysis without needing AQL knowledge",
+                        "purpose": "Get immediate insights for {goal} analysis without needing AQL knowledge",
                         "expected_outcome": "Formatted report with key metrics and insights"
                     },
                     {
@@ -1831,6 +1834,80 @@ class AparaviMCPServer:
         
         return response
     
+    async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle incoming MCP requests and route to appropriate handlers."""
+        method = request.get("method")
+        params = request.get("params", {})
+        request_id = request.get("id")
+        
+        self.logger.debug(f"Handling request: {method} (id: {request_id})")
+        
+        # Handle missing method
+        if not method:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "Invalid Request: missing method"
+                }
+            }
+        
+        try:
+            if method == "initialize":
+                result = await self.handle_initialize(params)
+            elif method == "tools/list":
+                result = await self.handle_list_tools(params)
+            elif method == "tools/call":
+                result = await self.handle_call_tool(params)
+            elif method == "notifications/initialized":
+                # Handle the initialized notification - no response needed
+                self.logger.info("Received initialized notification")
+                return None
+            else:
+                error_msg = f"Method not found: {method}"
+                self.logger.error(error_msg)
+                
+                # For notifications (no id), don't send a response
+                if request_id is None:
+                    return None
+                    
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": error_msg
+                    }
+                }
+            
+            # For notifications (no id), don't send a response
+            if request_id is None:
+                return None
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": result
+            }
+            
+        except Exception as e:
+            error_msg = f"Internal error handling {method}: {format_error_message(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            
+            # For notifications (no id), don't send a response
+            if request_id is None:
+                return None
+                
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32603,
+                    "message": error_msg
+                }
+            }
+    
     async def run(self) -> None:
         """Run the MCP server."""
         self.logger.info("Starting Aparavi Data Suite MCP Server")
@@ -1852,20 +1929,37 @@ class AparaviMCPServer:
                         continue
                     
                     # Parse JSON request
-                    request = json.loads(line)
+                    try:
+                        request = json.loads(line)
+                        self.logger.debug(f"Received request: {request}")
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"Invalid JSON received: {line[:100]}... Error: {e}")
+                        continue
                     
                     # Handle request
-                    response = await self.handle_request(request)
+                    try:
+                        response = await self.handle_request(request)
+                        self.logger.debug(f"Generated response: {response}")
+                    except Exception as e:
+                        self.logger.error(f"Error handling request: {e}", exc_info=True)
+                        continue
                     
-                    # Send JSON response to stdout
+                    # Send JSON response to stdout (only if response is not None)
                     if response is not None:
-                        response_json = json.dumps(response)
                         try:
+                            # Ensure clean JSON output without extra whitespace
+                            response_json = json.dumps(response, separators=(',', ':'))
                             print(response_json, flush=True)
+                            self.logger.debug(f"Sent response: {response_json}")
                         except (OSError, IOError, UnicodeEncodeError) as e:
                             # Handle case where stdout is closed (e.g., when Claude Desktop disconnects)
                             self.logger.debug(f"Stdout write failed (connection closed): {e}")
                             break
+                        except Exception as e:
+                            self.logger.error(f"Error serializing response: {e}")
+                            continue
+                    else:
+                        self.logger.debug("No response sent (notification or null response)")
                 except json.JSONDecodeError as e:
                     self.logger.error(f"Invalid JSON received: {e}")
                     continue
