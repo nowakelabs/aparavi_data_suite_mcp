@@ -1001,17 +1001,17 @@ class AparaviMCPServer:
         experience = assessment["detected_experience"]
         goal = assessment["detected_goal"]
         
-        response = f"# 🎯 Quick Start Guide\n\n"
+        response = f"# Quick Start Guide\n\n"
         response += f"**Detected:** {experience.title()} user seeking {goal} analysis\n\n"
         
         if guidance["next_steps"]:
-            response += f"## ⚡ Next Step\n\n"
+            response += f"## Next Step\n\n"
             first_step = guidance["next_steps"][0]
             response += f"**Tool:** `{first_step['tool']}`\n"
             response += f"**Parameters:** {first_step['parameters']}\n"
             response += f"**Purpose:** {first_step['purpose']}\n\n"
         
-        response += f"## 💡 Key Tip\n"
+        response += f"## Key Tip\n"
         if guidance["helpful_context"]["success_tips"]:
             response += f"{guidance['helpful_context']['success_tips'][0]}\n\n"
         
@@ -1026,17 +1026,17 @@ class AparaviMCPServer:
         goal = assessment["detected_goal"]
         approach = assessment["recommended_approach"]
         
-        response = f"# 🚀 Comprehensive Aparavi Data Suite Guide\n\n"
+        response = f"# Comprehensive Aparavi Data Suite Guide\n\n"
         
         # Assessment Summary
-        response += f"## 📊 Your Profile Assessment\n\n"
+        response += f"## Your Profile Assessment\n\n"
         response += f"- **Experience Level:** {experience.title()}\n"
         response += f"- **Analysis Goal:** {goal.title()}\n"
         response += f"- **Recommended Approach:** {approach.replace('_', ' ').title()}\n\n"
         
         # Detailed Next Steps
         if guidance["next_steps"]:
-            response += f"## 🎯 Recommended Workflow\n\n"
+            response += f"## Recommended Workflow\n\n"
             for i, step in enumerate(guidance["next_steps"], 1):
                 response += f"### Step {step['step']}: {step['tool']}\n\n"
                 response += f"**Parameters:** `{step['parameters']}`\n\n"
@@ -1045,7 +1045,7 @@ class AparaviMCPServer:
         
         # Alternative Paths
         if guidance["alternative_paths"]:
-            response += f"## 🔄 Alternative Approaches\n\n"
+            response += f"## Alternative Approaches\n\n"
             for alt in guidance["alternative_paths"]:
                 response += f"**If:** {alt['if']}\n"
                 response += f"**Then:** {alt['then']}\n"
@@ -1053,34 +1053,34 @@ class AparaviMCPServer:
         
         # Recommended Resources
         if guidance["recommended_reports"]:
-            response += f"## 📋 Relevant Reports\n\n"
+            response += f"## Relevant Reports\n\n"
             for report in guidance["recommended_reports"][:3]:  # Show top 3
                 response += f"- `{report}`\n"
             response += f"\n"
         
         if guidance["recommended_workflows"]:
-            response += f"## 🔗 Relevant Workflows\n\n"
+            response += f"## Relevant Workflows\n\n"
             for workflow in guidance["recommended_workflows"]:
                 response += f"- `{workflow}`\n"
             response += f"\n"
         
         # Comprehensive Context
-        response += f"## ⚠️ Important Limitations\n\n"
+        response += f"## Important Limitations\n\n"
         for limitation in guidance["helpful_context"]["key_limitations"]:
             response += f"- {limitation}\n"
         response += f"\n"
         
-        response += f"## 🚫 Common Pitfalls to Avoid\n\n"
+        response += f"## Common Pitfalls to Avoid\n\n"
         for pitfall in guidance["helpful_context"]["common_pitfalls"]:
             response += f"- {pitfall}\n"
         response += f"\n"
         
-        response += f"## ✅ Success Tips\n\n"
+        response += f"## Success Tips\n\n"
         for tip in guidance["helpful_context"]["success_tips"]:
             response += f"- {tip}\n"
         response += f"\n"
         
-        response += f"## 🛠️ All Available Tools\n\n"
+        response += f"## All Available Tools\n\n"
         response += f"1. **guide_start_here** - This intelligent routing assistant\n"
         response += f"2. **health_check** - System health and connectivity verification\n"
         response += f"3. **server_info** - Configuration and capabilities overview\n"
@@ -1100,32 +1100,32 @@ class AparaviMCPServer:
         goal = assessment["detected_goal"]
         approach = assessment["recommended_approach"]
         
-        response = f"# 🎯 Aparavi Data Suite - Your Personalized Guide\n\n"
+        response = f"# Aparavi Data Suite - Your Personalized Guide\n\n"
         
         # Quick Assessment
         response += f"**Profile:** {experience.title()} user → {goal.title()} analysis → {approach.replace('_', ' ').title()} approach\n\n"
         
         # Primary Workflow
         if guidance["next_steps"]:
-            response += f"## 🚀 Recommended Steps\n\n"
+            response += f"## Recommended Steps\n\n"
             for step in guidance["next_steps"][:2]:  # Show first 2 steps
                 response += f"**{step['step']}.** `{step['tool']}` - {step['purpose']}\n"
                 response += f"   Parameters: `{step['parameters']}`\n\n"
         
         # Key Alternative
         if guidance["alternative_paths"]:
-            response += f"## 🔄 If That Doesn't Fit\n\n"
+            response += f"## If That Doesn't Fit\n\n"
             primary_alt = guidance["alternative_paths"][0]
             response += f"**{primary_alt['if']}**\n"
             response += f"{primary_alt['then']}\n\n"
         
         # Essential Context
-        response += f"## 💡 Key Things to Know\n\n"
+        response += f"## Key Things to Know\n\n"
         response += f"**Limitations:** {guidance['helpful_context']['key_limitations'][0]}\n\n"
         response += f"**Success Tip:** {guidance['helpful_context']['success_tips'][0]}\n\n"
         
         # Quick Tool Reference
-        response += f"## 🛠️ Tool Quick Reference\n\n"
+        response += f"## Tool Quick Reference\n\n"
         response += f"- **Predefined Analysis:** `run_aparavi_report` (20 reports, 5 workflows)\n"
         response += f"- **Custom Analysis:** `generate_aql_query` → `validate_aql_query` → `execute_custom_aql_query`\n"
         response += f"- **System Check:** `health_check` or `server_info`\n\n"
@@ -1697,17 +1697,17 @@ class AparaviMCPServer:
         experience = assessment["detected_experience"]
         goal = assessment["detected_goal"]
         
-        response = f"# 🎯 Quick Start Guide\n\n"
+        response = f"# Quick Start Guide\n\n"
         response += f"**Detected:** {experience.title()} user seeking {goal} analysis\n\n"
         
         if guidance["next_steps"]:
-            response += f"## ⚡ Next Step\n\n"
+            response += f"## Next Step\n\n"
             first_step = guidance["next_steps"][0]
             response += f"**Tool:** `{first_step['tool']}`\n"
             response += f"**Parameters:** {first_step['parameters']}\n"
             response += f"**Purpose:** {first_step['purpose']}\n\n"
         
-        response += f"## 💡 Key Tip\n"
+        response += f"## Key Tip\n"
         if guidance["helpful_context"]["success_tips"]:
             response += f"{guidance['helpful_context']['success_tips'][0]}\n\n"
         
@@ -1722,17 +1722,17 @@ class AparaviMCPServer:
         goal = assessment["detected_goal"]
         approach = assessment["recommended_approach"]
         
-        response = f"# 🚀 Comprehensive Aparavi Data Suite Guide\n\n"
+        response = f"# Comprehensive Aparavi Data Suite Guide\n\n"
         
         # Assessment Summary
-        response += f"## 📊 Your Profile Assessment\n\n"
+        response += f"## Your Profile Assessment\n\n"
         response += f"- **Experience Level:** {experience.title()}\n"
         response += f"- **Analysis Goal:** {goal.title()}\n"
         response += f"- **Recommended Approach:** {approach.replace('_', ' ').title()}\n\n"
         
         # Detailed Next Steps
         if guidance["next_steps"]:
-            response += f"## 🎯 Recommended Workflow\n\n"
+            response += f"## Recommended Workflow\n\n"
             for i, step in enumerate(guidance["next_steps"], 1):
                 response += f"### Step {step['step']}: {step['tool']}\n\n"
                 response += f"**Parameters:** `{step['parameters']}`\n\n"
@@ -1741,7 +1741,7 @@ class AparaviMCPServer:
         
         # Alternative Paths
         if guidance["alternative_paths"]:
-            response += f"## 🔄 Alternative Approaches\n\n"
+            response += f"## Alternative Approaches\n\n"
             for alt in guidance["alternative_paths"]:
                 response += f"**If:** {alt['if']}\n"
                 response += f"**Then:** {alt['then']}\n"
@@ -1749,34 +1749,34 @@ class AparaviMCPServer:
         
         # Recommended Resources
         if guidance["recommended_reports"]:
-            response += f"## 📋 Relevant Reports\n\n"
+            response += f"## Relevant Reports\n\n"
             for report in guidance["recommended_reports"][:3]:  # Show top 3
                 response += f"- `{report}`\n"
             response += f"\n"
         
         if guidance["recommended_workflows"]:
-            response += f"## 🔗 Relevant Workflows\n\n"
+            response += f"## Relevant Workflows\n\n"
             for workflow in guidance["recommended_workflows"]:
                 response += f"- `{workflow}`\n"
             response += f"\n"
         
         # Comprehensive Context
-        response += f"## ⚠️ Important Limitations\n\n"
+        response += f"## Important Limitations\n\n"
         for limitation in guidance["helpful_context"]["key_limitations"]:
             response += f"- {limitation}\n"
         response += f"\n"
         
-        response += f"## 🚫 Common Pitfalls to Avoid\n\n"
+        response += f"## Common Pitfalls to Avoid\n\n"
         for pitfall in guidance["helpful_context"]["common_pitfalls"]:
             response += f"- {pitfall}\n"
         response += f"\n"
         
-        response += f"## ✅ Success Tips\n\n"
+        response += f"## Success Tips\n\n"
         for tip in guidance["helpful_context"]["success_tips"]:
             response += f"- {tip}\n"
         response += f"\n"
         
-        response += f"## 🛠️ All Available Tools\n\n"
+        response += f"## All Available Tools\n\n"
         response += f"1. **guide_start_here** - This intelligent routing assistant\n"
         response += f"2. **health_check** - System health and connectivity verification\n"
         response += f"3. **server_info** - Configuration and capabilities overview\n"
@@ -1796,32 +1796,32 @@ class AparaviMCPServer:
         goal = assessment["detected_goal"]
         approach = assessment["recommended_approach"]
         
-        response = f"# 🎯 Aparavi Data Suite - Your Personalized Guide\n\n"
+        response = f"# Aparavi Data Suite - Your Personalized Guide\n\n"
         
         # Quick Assessment
         response += f"**Profile:** {experience.title()} user → {goal.title()} analysis → {approach.replace('_', ' ').title()} approach\n\n"
         
         # Primary Workflow
         if guidance["next_steps"]:
-            response += f"## 🚀 Recommended Steps\n\n"
+            response += f"## Recommended Steps\n\n"
             for step in guidance["next_steps"][:2]:  # Show first 2 steps
                 response += f"**{step['step']}.** `{step['tool']}` - {step['purpose']}\n"
                 response += f"   Parameters: `{step['parameters']}`\n\n"
         
         # Key Alternative
         if guidance["alternative_paths"]:
-            response += f"## 🔄 If That Doesn't Fit\n\n"
+            response += f"## If That Doesn't Fit\n\n"
             primary_alt = guidance["alternative_paths"][0]
             response += f"**{primary_alt['if']}**\n"
             response += f"{primary_alt['then']}\n\n"
         
         # Essential Context
-        response += f"## 💡 Key Things to Know\n\n"
+        response += f"## Key Things to Know\n\n"
         response += f"**Limitations:** {guidance['helpful_context']['key_limitations'][0]}\n\n"
         response += f"**Success Tip:** {guidance['helpful_context']['success_tips'][0]}\n\n"
         
         # Quick Tool Reference
-        response += f"## 🛠️ Tool Quick Reference\n\n"
+        response += f"## Tool Quick Reference\n\n"
         response += f"- **Predefined Analysis:** `run_aparavi_report` (20 reports, 5 workflows)\n"
         response += f"- **Custom Analysis:** `generate_aql_query` → `validate_aql_query` → `execute_custom_aql_query`\n"
         response += f"- **System Check:** `health_check` or `server_info`\n\n"
