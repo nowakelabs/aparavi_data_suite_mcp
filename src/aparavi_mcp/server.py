@@ -1294,9 +1294,9 @@ class AparaviMCPServer:
                 valid_fields = [field['field'] for field in core_fields]
                 for field in desired_fields:
                     if field in valid_fields:
-                        response_parts.append(f"✅ **{field}**: Valid Aparavi field\n")
+                        response_parts.append(f"[VALID] **{field}**: Valid Aparavi field\n")
                     else:
-                        response_parts.append(f"❌ **{field}**: Not a valid Aparavi field. Consider: {', '.join(valid_fields[:5])}...\n")
+                        response_parts.append(f"[INVALID] **{field}**: Not a valid Aparavi field. Consider: {', '.join(valid_fields[:5])}...\n")
             
             # Add important warnings and tips
             response_parts.append("\n### Important Notes\n")
@@ -1437,7 +1437,7 @@ class AparaviMCPServer:
                 "isError": True,
                 "content": [{
                     "type": "text",
-                    "text": f"# ❌ Guide Start Here Failed\n\nError: {str(e)}\n\nPlease try again or contact support@aparavi.com"
+                    "text": f"# Guide Start Here Failed\n\nError: {str(e)}\n\nPlease try again or contact support@aparavi.com"
                 }]
             }
     
