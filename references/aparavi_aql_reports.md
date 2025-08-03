@@ -1,4 +1,4 @@
-# AQL Queries from APARAVI Default Reports - CORRECTED
+# AQL Queries from APARAVI Default Reports
 
 ## How to Query the Aparavi API Endpoint
 
