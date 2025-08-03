@@ -87,6 +87,40 @@ class AparaviMCPServer:
         
         tools = [
             {
+                "name": "guide_start_here",
+                "description": "**START HERE**: Intelligent entry point and routing assistant for the Aparavi Data Suite MCP Server. Assesses your experience level, goals, and preferences to provide personalized guidance on which tools to use and in what sequence. **PERFECT FOR**: New users, complex analysis planning, tool selection guidance, workflow optimization, and when you're unsure which of the 6 available tools best fits your needs. **SAVES TIME**: Prevents trial-and-error by recommending the optimal path forward based on your specific situation.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "user_experience": {
+                            "type": "string",
+                            "enum": ["new", "intermediate", "advanced", "unknown"],
+                            "description": "Your experience level with AQL/Aparavi Data Suite (leave empty if unsure)"
+                        },
+                        "query_goal": {
+                            "type": "string",
+                            "enum": ["duplicates", "growth", "security", "exploration", "custom", "troubleshooting", "unknown"],
+                            "description": "Your primary analysis goal (leave empty if unsure)"
+                        },
+                        "preferred_approach": {
+                            "type": "string",
+                            "enum": ["reports", "custom_queries", "guided", "unknown"],
+                            "description": "Your preferred working style (leave empty if unsure)"
+                        },
+                        "context_window": {
+                            "type": "string",
+                            "enum": ["small", "medium", "large", "unknown"],
+                            "description": "Your context/attention preference - small=focused steps, large=comprehensive guidance (leave empty if unsure)"
+                        },
+                        "specific_question": {
+                            "type": "string",
+                            "description": "Optional: Describe your specific data analysis question or challenge"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
                 "name": "health_check",
                 "description": "Check the health and connectivity of the Aparavi Data Suite MCP server and API connection, including validation of all configured AQL queries",
                 "inputSchema": {
@@ -194,7 +228,9 @@ class AparaviMCPServer:
         self.logger.info(f"Handling call_tool request for: {tool_name}")
         
         try:
-            if tool_name == "health_check":
+            if tool_name == "guide_start_here":
+                return await self._handle_guide_start_here(arguments)
+            elif tool_name == "health_check":
                 return await self._handle_health_check()
             elif tool_name == "server_info":
                 return await self._handle_server_info()
@@ -959,6 +995,146 @@ class AparaviMCPServer:
                 "isError": True
             }
     
+    def _format_focused_response(self, assessment: Dict[str, str], guidance: Dict[str, Any]) -> str:
+        """Format a focused, concise response for users who prefer small context windows."""
+        
+        experience = assessment["detected_experience"]
+        goal = assessment["detected_goal"]
+        
+        response = f"# 🎯 Quick Start Guide\n\n"
+        response += f"**Detected:** {experience.title()} user seeking {goal} analysis\n\n"
+        
+        if guidance["next_steps"]:
+            response += f"## ⚡ Next Step\n\n"
+            first_step = guidance["next_steps"][0]
+            response += f"**Tool:** `{first_step['tool']}`\n"
+            response += f"**Parameters:** {first_step['parameters']}\n"
+            response += f"**Purpose:** {first_step['purpose']}\n\n"
+        
+        response += f"## 💡 Key Tip\n"
+        if guidance["helpful_context"]["success_tips"]:
+            response += f"{guidance['helpful_context']['success_tips'][0]}\n\n"
+        
+        response += f"*Need more guidance? Call guide_start_here again with context_window='large'*"
+        
+        return response
+    
+    def _format_comprehensive_response(self, assessment: Dict[str, str], guidance: Dict[str, Any]) -> str:
+        """Format a comprehensive response for users who prefer detailed guidance."""
+        
+        experience = assessment["detected_experience"]
+        goal = assessment["detected_goal"]
+        approach = assessment["recommended_approach"]
+        
+        response = f"# 🚀 Comprehensive Aparavi Data Suite Guide\n\n"
+        
+        # Assessment Summary
+        response += f"## 📊 Your Profile Assessment\n\n"
+        response += f"- **Experience Level:** {experience.title()}\n"
+        response += f"- **Analysis Goal:** {goal.title()}\n"
+        response += f"- **Recommended Approach:** {approach.replace('_', ' ').title()}\n\n"
+        
+        # Detailed Next Steps
+        if guidance["next_steps"]:
+            response += f"## 🎯 Recommended Workflow\n\n"
+            for i, step in enumerate(guidance["next_steps"], 1):
+                response += f"### Step {step['step']}: {step['tool']}\n\n"
+                response += f"**Parameters:** `{step['parameters']}`\n\n"
+                response += f"**Purpose:** {step['purpose']}\n\n"
+                response += f"**Expected Outcome:** {step['expected_outcome']}\n\n"
+        
+        # Alternative Paths
+        if guidance["alternative_paths"]:
+            response += f"## 🔄 Alternative Approaches\n\n"
+            for alt in guidance["alternative_paths"]:
+                response += f"**If:** {alt['if']}\n"
+                response += f"**Then:** {alt['then']}\n"
+                response += f"**Tools:** {', '.join(alt['tools'])}\n\n"
+        
+        # Recommended Resources
+        if guidance["recommended_reports"]:
+            response += f"## 📋 Relevant Reports\n\n"
+            for report in guidance["recommended_reports"][:3]:  # Show top 3
+                response += f"- `{report}`\n"
+            response += f"\n"
+        
+        if guidance["recommended_workflows"]:
+            response += f"## 🔗 Relevant Workflows\n\n"
+            for workflow in guidance["recommended_workflows"]:
+                response += f"- `{workflow}`\n"
+            response += f"\n"
+        
+        # Comprehensive Context
+        response += f"## ⚠️ Important Limitations\n\n"
+        for limitation in guidance["helpful_context"]["key_limitations"]:
+            response += f"- {limitation}\n"
+        response += f"\n"
+        
+        response += f"## 🚫 Common Pitfalls to Avoid\n\n"
+        for pitfall in guidance["helpful_context"]["common_pitfalls"]:
+            response += f"- {pitfall}\n"
+        response += f"\n"
+        
+        response += f"## ✅ Success Tips\n\n"
+        for tip in guidance["helpful_context"]["success_tips"]:
+            response += f"- {tip}\n"
+        response += f"\n"
+        
+        response += f"## 🛠️ All Available Tools\n\n"
+        response += f"1. **guide_start_here** - This intelligent routing assistant\n"
+        response += f"2. **health_check** - System health and connectivity verification\n"
+        response += f"3. **server_info** - Configuration and capabilities overview\n"
+        response += f"4. **run_aparavi_report** - 20 predefined reports + 5 workflows\n"
+        response += f"5. **validate_aql_query** - Syntax validation without execution\n"
+        response += f"6. **execute_custom_aql_query** - Validate and execute custom queries\n"
+        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n\n"
+        
+        response += f"*Ready to proceed? Execute the recommended Step 1 above to get started!*"
+        
+        return response
+    
+    def _format_balanced_response(self, assessment: Dict[str, str], guidance: Dict[str, Any]) -> str:
+        """Format a balanced response with essential information without overwhelming detail."""
+        
+        experience = assessment["detected_experience"]
+        goal = assessment["detected_goal"]
+        approach = assessment["recommended_approach"]
+        
+        response = f"# 🎯 Aparavi Data Suite - Your Personalized Guide\n\n"
+        
+        # Quick Assessment
+        response += f"**Profile:** {experience.title()} user → {goal.title()} analysis → {approach.replace('_', ' ').title()} approach\n\n"
+        
+        # Primary Workflow
+        if guidance["next_steps"]:
+            response += f"## 🚀 Recommended Steps\n\n"
+            for step in guidance["next_steps"][:2]:  # Show first 2 steps
+                response += f"**{step['step']}.** `{step['tool']}` - {step['purpose']}\n"
+                response += f"   Parameters: `{step['parameters']}`\n\n"
+        
+        # Key Alternative
+        if guidance["alternative_paths"]:
+            response += f"## 🔄 If That Doesn't Fit\n\n"
+            primary_alt = guidance["alternative_paths"][0]
+            response += f"**{primary_alt['if']}**\n"
+            response += f"{primary_alt['then']}\n\n"
+        
+        # Essential Context
+        response += f"## 💡 Key Things to Know\n\n"
+        response += f"**Limitations:** {guidance['helpful_context']['key_limitations'][0]}\n\n"
+        response += f"**Success Tip:** {guidance['helpful_context']['success_tips'][0]}\n\n"
+        
+        # Quick Tool Reference
+        response += f"## 🛠️ Tool Quick Reference\n\n"
+        response += f"- **Predefined Analysis:** `run_aparavi_report` (20 reports, 5 workflows)\n"
+        response += f"- **Custom Analysis:** `generate_aql_query` → `validate_aql_query` → `execute_custom_aql_query`\n"
+        response += f"- **System Check:** `health_check` or `server_info`\n\n"
+        
+        response += f"*Want more detail? Call guide_start_here with context_window='large'*\n"
+        response += f"*Want just the essentials? Use context_window='small'*"
+        
+        return response
+    
     async def _handle_generate_aql_query(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle generate_aql_query tool requests - intelligent AQL query builder."""
         self.logger.debug("Handling generate_aql_query request")
@@ -1118,9 +1294,9 @@ class AparaviMCPServer:
                 valid_fields = [field['field'] for field in core_fields]
                 for field in desired_fields:
                     if field in valid_fields:
-                        response_parts.append(f"✅ **{field}**: Valid Aparavi field\n")
+                        response_parts.append(f"[VALID] **{field}**: Valid Aparavi field\n")
                     else:
-                        response_parts.append(f"❌ **{field}**: Not a valid Aparavi field. Consider: {', '.join(valid_fields[:5])}...\n")
+                        response_parts.append(f"[INVALID] **{field}**: Not a valid Aparavi field. Consider: {', '.join(valid_fields[:5])}...\n")
             
             # Add important warnings and tips
             response_parts.append("\n### Important Notes\n")
@@ -1209,6 +1385,446 @@ class AparaviMCPServer:
                     "message": error_msg
                 }
             }
+        
+        return response
+    
+    async def _handle_guide_start_here(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle guide_start_here tool - intelligent entry point and routing assistant."""
+        self.logger.info("Processing guide_start_here request")
+        
+        try:
+            # Extract parameters with defaults
+            user_experience = arguments.get("user_experience", "unknown")
+            query_goal = arguments.get("query_goal", "unknown")
+            preferred_approach = arguments.get("preferred_approach", "unknown")
+            context_window = arguments.get("context_window", "unknown")
+            specific_question = arguments.get("specific_question", "").strip()
+            
+            # Load available reports and workflows for intelligent routing
+            available_reports = list(self.aparavi_reports.keys())
+            available_workflows = list(self.analysis_workflows.keys())
+            
+            # Assessment logic
+            assessment = self._assess_user_context(
+                user_experience, query_goal, preferred_approach, specific_question
+            )
+            
+            # Generate personalized guidance
+            guidance = self._generate_personalized_guidance(
+                assessment, context_window, specific_question, available_reports, available_workflows
+            )
+            
+            # Format response based on context window preference
+            if context_window == "small":
+                response = self._format_focused_response(assessment, guidance)
+            elif context_window == "large":
+                response = self._format_comprehensive_response(assessment, guidance)
+            else:
+                response = self._format_balanced_response(assessment, guidance)
+            
+            self.logger.info(f"Guide provided for {assessment['detected_experience']} user with {assessment['detected_goal']} goal")
+            
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": response
+                }]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error in guide_start_here: {e}")
+            return {
+                "isError": True,
+                "content": [{
+                    "type": "text",
+                    "text": f"# Guide Start Here Failed\n\nError: {str(e)}\n\nPlease try again or contact support@aparavi.com"
+                }]
+            }
+    
+    def _assess_user_context(self, user_experience: str, query_goal: str, preferred_approach: str, specific_question: str) -> Dict[str, str]:
+        """Assess user context and detect patterns from their input."""
+        
+        # Experience level detection
+        detected_experience = user_experience
+        if user_experience == "unknown" and specific_question:
+            question_lower = specific_question.lower()
+            if any(term in question_lower for term in ["aql", "query", "select", "where", "group by"]):
+                detected_experience = "intermediate"
+            elif any(term in question_lower for term in ["syntax", "validation", "optimize", "performance"]):
+                detected_experience = "advanced"
+            elif any(term in question_lower for term in ["how do i", "getting started", "new to", "don't know"]):
+                detected_experience = "new"
+            else:
+                detected_experience = "new"  # Default to safest assumption
+        elif user_experience == "unknown":
+            detected_experience = "new"  # Default to safest assumption
+        
+        # Goal detection from specific question
+        detected_goal = query_goal
+        if query_goal == "unknown" and specific_question:
+            question_lower = specific_question.lower()
+            if any(term in question_lower for term in ["duplicate", "dedup", "same file", "copies"]):
+                detected_goal = "duplicates"
+            elif any(term in question_lower for term in ["growth", "trend", "over time", "monthly", "yearly"]):
+                detected_goal = "growth"
+            elif any(term in question_lower for term in ["classification", "sensitive", "pii", "security", "permission"]):
+                detected_goal = "security"
+            elif any(term in question_lower for term in ["overview", "summary", "explore", "what data", "show me"]):
+                detected_goal = "exploration"
+            elif any(term in question_lower for term in ["custom", "specific", "complex", "advanced analysis"]):
+                detected_goal = "custom"
+            elif any(term in question_lower for term in ["error", "failed", "not working", "help", "troubleshoot"]):
+                detected_goal = "troubleshooting"
+            else:
+                detected_goal = "exploration"  # Default to safest assumption
+        elif query_goal == "unknown":
+            detected_goal = "exploration"  # Default to safest assumption
+        
+        # Approach recommendation
+        recommended_approach = preferred_approach
+        if preferred_approach == "unknown":
+            if detected_experience == "new":
+                recommended_approach = "guided"
+            elif detected_experience == "advanced" and detected_goal == "custom":
+                recommended_approach = "custom_queries"
+            else:
+                recommended_approach = "reports"
+        
+        return {
+            "detected_experience": detected_experience,
+            "detected_goal": detected_goal,
+            "recommended_approach": recommended_approach
+        }
+    
+    def _generate_personalized_guidance(self, assessment: Dict[str, str], context_window: str, 
+                                      specific_question: str, available_reports: list, available_workflows: list) -> Dict[str, Any]:
+        """Generate personalized guidance based on assessment."""
+        
+        experience = assessment["detected_experience"]
+        goal = assessment["detected_goal"]
+        approach = assessment["recommended_approach"]
+        
+        # Goal-specific report recommendations
+        goal_report_mapping = {
+            "duplicates": ["duplicate_file_summary", "duplicate_file_summary_detailed"],
+            "growth": ["yearly_data_growth", "monthly_data_growth", "data_sources_created"],
+            "security": ["classifications_by_permissions", "classifications_by_owner", "simple_classification_summary"],
+            "exploration": ["data_sources_overview", "file_type_extension_summary", "simple_classification_summary"],
+            "custom": [],  # Will use generate_aql_query
+            "troubleshooting": []  # Will use health_check first
+        }
+        
+        # Workflow recommendations
+        goal_workflow_mapping = {
+            "duplicates": ["storage_audit"],
+            "growth": ["growth_analysis", "data_lifecycle"],
+            "security": ["security_review", "compliance_check"],
+            "exploration": ["storage_audit", "compliance_check"],
+            "custom": [],
+            "troubleshooting": []
+        }
+        
+        # Generate next steps based on experience and goal
+        next_steps = []
+        
+        if goal == "troubleshooting":
+            next_steps = [
+                {
+                    "step": 1,
+                    "tool": "health_check",
+                    "parameters": "No parameters needed",
+                    "purpose": "Verify system connectivity and identify any configuration issues",
+                    "expected_outcome": "System status report with API connectivity and AQL validation results"
+                }
+            ]
+        elif experience == "new":
+            if goal in goal_report_mapping and goal_report_mapping[goal]:
+                primary_report = goal_report_mapping[goal][0]
+                next_steps = [
+                    {
+                        "step": 1,
+                        "tool": "run_aparavi_report",
+                        "parameters": f'report_name="{primary_report}"',
+                        "purpose": f"Get immediate insights for {goal} analysis without needing AQL knowledge",
+                        "expected_outcome": "Formatted report with key metrics and insights"
+                    },
+                    {
+                        "step": 2,
+                        "tool": "run_aparavi_report",
+                        "parameters": 'report_name="list"',
+                        "purpose": "Discover other relevant reports for deeper analysis",
+                        "expected_outcome": "Complete list of 20 available reports with descriptions"
+                    }
+                ]
+            else:
+                next_steps = [
+                    {
+                        "step": 1,
+                        "tool": "server_info",
+                        "parameters": "No parameters needed",
+                        "purpose": "Understand available capabilities and get oriented",
+                        "expected_outcome": "Server configuration and feature overview"
+                    },
+                    {
+                        "step": 2,
+                        "tool": "run_aparavi_report",
+                        "parameters": 'report_name="list"',
+                        "purpose": "See all available pre-built analyses",
+                        "expected_outcome": "Complete catalog of reports and workflows"
+                    }
+                ]
+        elif experience == "intermediate":
+            if goal == "custom":
+                next_steps = [
+                    {
+                        "step": 1,
+                        "tool": "generate_aql_query",
+                        "parameters": f'business_question="{specific_question or "Your specific analysis question"}"',
+                        "purpose": "Generate syntactically correct AQL for your custom analysis",
+                        "expected_outcome": "Valid AQL query with explanation and field validation"
+                    },
+                    {
+                        "step": 2,
+                        "tool": "validate_aql_query",
+                        "parameters": "query=\"[generated query]\"",
+                        "purpose": "Verify the generated query syntax before execution",
+                        "expected_outcome": "Validation confirmation or detailed error information"
+                    }
+                ]
+            elif goal in goal_workflow_mapping and goal_workflow_mapping[goal]:
+                primary_workflow = goal_workflow_mapping[goal][0]
+                next_steps = [
+                    {
+                        "step": 1,
+                        "tool": "run_aparavi_report",
+                        "parameters": f'workflow_name="{primary_workflow}"',
+                        "purpose": f"Execute comprehensive {goal} analysis workflow",
+                        "expected_outcome": "Multi-report analysis with integrated insights"
+                    }
+                ]
+        elif experience == "advanced":
+            if goal == "custom":
+                next_steps = [
+                    {
+                        "step": 1,
+                        "tool": "validate_aql_query",
+                        "parameters": "query=\"[your AQL query]\"",
+                        "purpose": "Validate your custom AQL syntax against Aparavi limitations",
+                        "expected_outcome": "Syntax validation with specific error details if needed"
+                    },
+                    {
+                        "step": 2,
+                        "tool": "execute_custom_aql_query",
+                        "parameters": "query=\"[validated query]\"",
+                        "purpose": "Execute your validated query and get raw JSON results",
+                        "expected_outcome": "Raw JSON data for further analysis or visualization"
+                    }
+                ]
+            else:
+                # Advanced users might want to see the query behind reports
+                if goal in goal_report_mapping and goal_report_mapping[goal]:
+                    primary_report = goal_report_mapping[goal][0]
+                    next_steps = [
+                        {
+                            "step": 1,
+                            "tool": "run_aparavi_report",
+                            "parameters": f'report_name="{primary_report}"',
+                            "purpose": "Execute optimized report to see results and understand query patterns",
+                            "expected_outcome": "Report results plus insight into proven AQL patterns"
+                        }
+                    ]
+        
+        # Generate alternative paths
+        alternative_paths = []
+        
+        if goal != "custom":
+            alternative_paths.append({
+                "if": "The predefined reports don't match your exact needs",
+                "then": "Use generate_aql_query → validate_aql_query → execute_custom_aql_query",
+                "tools": ["generate_aql_query", "validate_aql_query", "execute_custom_aql_query"]
+            })
+        
+        if experience != "new":
+            alternative_paths.append({
+                "if": "You want to explore all available options first",
+                "then": "Start with run_aparavi_report('list') to see all 20 reports and 5 workflows",
+                "tools": ["run_aparavi_report"]
+            })
+        
+        if goal != "troubleshooting":
+            alternative_paths.append({
+                "if": "You encounter errors or unexpected results",
+                "then": "Run health_check to verify system status and connectivity",
+                "tools": ["health_check"]
+            })
+        
+        # Context-aware helpful information
+        helpful_context = {
+            "key_limitations": [
+                "AQL doesn't support DISTINCT (use GROUP BY instead)",
+                "No DATEADD function (use time arithmetic: cast(NOW() as number) - createTime)",
+                "Always include ClassID = 'idxobject' for file analysis",
+                "Handle NULL values explicitly in WHERE clauses"
+            ],
+            "common_pitfalls": [
+                "Don't write AQL manually - use generate_aql_query for custom analysis",
+                "Always validate queries before execution to avoid API errors",
+                "Check predefined reports first - they cover 90% of common use cases",
+                "Use workflows for multi-report analysis instead of running reports individually"
+            ],
+            "success_tips": [
+                "Start with predefined reports, then move to custom queries if needed",
+                "Use the 3-step workflow: generate → validate → execute for custom analysis",
+                "Break complex questions into smaller, focused queries",
+                "Leverage report combinations and workflows for comprehensive analysis"
+            ]
+        }
+        
+        return {
+            "next_steps": next_steps,
+            "alternative_paths": alternative_paths,
+            "helpful_context": helpful_context,
+            "recommended_reports": goal_report_mapping.get(goal, []),
+            "recommended_workflows": goal_workflow_mapping.get(goal, [])
+        }
+    
+    def _format_focused_response(self, assessment: Dict[str, str], guidance: Dict[str, Any]) -> str:
+        """Format a focused, concise response for users who prefer small context windows."""
+        
+        experience = assessment["detected_experience"]
+        goal = assessment["detected_goal"]
+        
+        response = f"# 🎯 Quick Start Guide\n\n"
+        response += f"**Detected:** {experience.title()} user seeking {goal} analysis\n\n"
+        
+        if guidance["next_steps"]:
+            response += f"## ⚡ Next Step\n\n"
+            first_step = guidance["next_steps"][0]
+            response += f"**Tool:** `{first_step['tool']}`\n"
+            response += f"**Parameters:** {first_step['parameters']}\n"
+            response += f"**Purpose:** {first_step['purpose']}\n\n"
+        
+        response += f"## 💡 Key Tip\n"
+        if guidance["helpful_context"]["success_tips"]:
+            response += f"{guidance['helpful_context']['success_tips'][0]}\n\n"
+        
+        response += f"*Need more guidance? Call guide_start_here again with context_window='large'*"
+        
+        return response
+    
+    def _format_comprehensive_response(self, assessment: Dict[str, str], guidance: Dict[str, Any]) -> str:
+        """Format a comprehensive response for users who prefer detailed guidance."""
+        
+        experience = assessment["detected_experience"]
+        goal = assessment["detected_goal"]
+        approach = assessment["recommended_approach"]
+        
+        response = f"# 🚀 Comprehensive Aparavi Data Suite Guide\n\n"
+        
+        # Assessment Summary
+        response += f"## 📊 Your Profile Assessment\n\n"
+        response += f"- **Experience Level:** {experience.title()}\n"
+        response += f"- **Analysis Goal:** {goal.title()}\n"
+        response += f"- **Recommended Approach:** {approach.replace('_', ' ').title()}\n\n"
+        
+        # Detailed Next Steps
+        if guidance["next_steps"]:
+            response += f"## 🎯 Recommended Workflow\n\n"
+            for i, step in enumerate(guidance["next_steps"], 1):
+                response += f"### Step {step['step']}: {step['tool']}\n\n"
+                response += f"**Parameters:** `{step['parameters']}`\n\n"
+                response += f"**Purpose:** {step['purpose']}\n\n"
+                response += f"**Expected Outcome:** {step['expected_outcome']}\n\n"
+        
+        # Alternative Paths
+        if guidance["alternative_paths"]:
+            response += f"## 🔄 Alternative Approaches\n\n"
+            for alt in guidance["alternative_paths"]:
+                response += f"**If:** {alt['if']}\n"
+                response += f"**Then:** {alt['then']}\n"
+                response += f"**Tools:** {', '.join(alt['tools'])}\n\n"
+        
+        # Recommended Resources
+        if guidance["recommended_reports"]:
+            response += f"## 📋 Relevant Reports\n\n"
+            for report in guidance["recommended_reports"][:3]:  # Show top 3
+                response += f"- `{report}`\n"
+            response += f"\n"
+        
+        if guidance["recommended_workflows"]:
+            response += f"## 🔗 Relevant Workflows\n\n"
+            for workflow in guidance["recommended_workflows"]:
+                response += f"- `{workflow}`\n"
+            response += f"\n"
+        
+        # Comprehensive Context
+        response += f"## ⚠️ Important Limitations\n\n"
+        for limitation in guidance["helpful_context"]["key_limitations"]:
+            response += f"- {limitation}\n"
+        response += f"\n"
+        
+        response += f"## 🚫 Common Pitfalls to Avoid\n\n"
+        for pitfall in guidance["helpful_context"]["common_pitfalls"]:
+            response += f"- {pitfall}\n"
+        response += f"\n"
+        
+        response += f"## ✅ Success Tips\n\n"
+        for tip in guidance["helpful_context"]["success_tips"]:
+            response += f"- {tip}\n"
+        response += f"\n"
+        
+        response += f"## 🛠️ All Available Tools\n\n"
+        response += f"1. **guide_start_here** - This intelligent routing assistant\n"
+        response += f"2. **health_check** - System health and connectivity verification\n"
+        response += f"3. **server_info** - Configuration and capabilities overview\n"
+        response += f"4. **run_aparavi_report** - 20 predefined reports + 5 workflows\n"
+        response += f"5. **validate_aql_query** - Syntax validation without execution\n"
+        response += f"6. **execute_custom_aql_query** - Validate and execute custom queries\n"
+        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n\n"
+        
+        response += f"*Ready to proceed? Execute the recommended Step 1 above to get started!*"
+        
+        return response
+    
+    def _format_balanced_response(self, assessment: Dict[str, str], guidance: Dict[str, Any]) -> str:
+        """Format a balanced response with essential information without overwhelming detail."""
+        
+        experience = assessment["detected_experience"]
+        goal = assessment["detected_goal"]
+        approach = assessment["recommended_approach"]
+        
+        response = f"# 🎯 Aparavi Data Suite - Your Personalized Guide\n\n"
+        
+        # Quick Assessment
+        response += f"**Profile:** {experience.title()} user → {goal.title()} analysis → {approach.replace('_', ' ').title()} approach\n\n"
+        
+        # Primary Workflow
+        if guidance["next_steps"]:
+            response += f"## 🚀 Recommended Steps\n\n"
+            for step in guidance["next_steps"][:2]:  # Show first 2 steps
+                response += f"**{step['step']}.** `{step['tool']}` - {step['purpose']}\n"
+                response += f"   Parameters: `{step['parameters']}`\n\n"
+        
+        # Key Alternative
+        if guidance["alternative_paths"]:
+            response += f"## 🔄 If That Doesn't Fit\n\n"
+            primary_alt = guidance["alternative_paths"][0]
+            response += f"**{primary_alt['if']}**\n"
+            response += f"{primary_alt['then']}\n\n"
+        
+        # Essential Context
+        response += f"## 💡 Key Things to Know\n\n"
+        response += f"**Limitations:** {guidance['helpful_context']['key_limitations'][0]}\n\n"
+        response += f"**Success Tip:** {guidance['helpful_context']['success_tips'][0]}\n\n"
+        
+        # Quick Tool Reference
+        response += f"## 🛠️ Tool Quick Reference\n\n"
+        response += f"- **Predefined Analysis:** `run_aparavi_report` (20 reports, 5 workflows)\n"
+        response += f"- **Custom Analysis:** `generate_aql_query` → `validate_aql_query` → `execute_custom_aql_query`\n"
+        response += f"- **System Check:** `health_check` or `server_info`\n\n"
+        
+        response += f"*Want more detail? Call guide_start_here with context_window='large'*\n"
+        response += f"*Want just the essentials? Use context_window='small'*"
         
         return response
     
