@@ -1860,6 +1860,10 @@ class AparaviMCPServer:
                 result = await self.handle_list_tools(params)
             elif method == "tools/call":
                 result = await self.handle_call_tool(params)
+            elif method == "resources/list":
+                result = await self.handle_list_resources(params)
+            elif method == "prompts/list":
+                result = await self.handle_list_prompts(params)
             elif method == "notifications/initialized":
                 # Handle the initialized notification - no response needed
                 self.logger.info("Received initialized notification")
@@ -1907,6 +1911,48 @@ class AparaviMCPServer:
                     "message": error_msg
                 }
             }
+    
+    async def handle_list_resources(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle resources/list request."""
+        self.logger.debug("Listing available resources")
+        
+        resources = [
+            {
+                "name": "Aparavi Data Suite API Documentation",
+                "description": "Official API documentation for Aparavi Data Suite",
+                "url": "https://aparavi.com/docs/api"
+            },
+            {
+                "name": "Aparavi Data Suite Community Forum",
+                "description": "Community forum for discussing Aparavi Data Suite and related topics",
+                "url": "https://community.aparavi.com"
+            }
+        ]
+        
+        return {
+            "resources": resources
+        }
+    
+    async def handle_list_prompts(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle prompts/list request."""
+        self.logger.debug("Listing available prompts")
+        
+        prompts = [
+            {
+                "name": "Get started with Aparavi Data Suite",
+                "description": "Begin your journey with Aparavi Data Suite",
+                "prompt": "What do you want to do with Aparavi Data Suite?"
+            },
+            {
+                "name": "Explore Aparavi Data Suite features",
+                "description": "Learn about the features of Aparavi Data Suite",
+                "prompt": "What features of Aparavi Data Suite are you interested in?"
+            }
+        ]
+        
+        return {
+            "prompts": prompts
+        }
     
     async def run(self) -> None:
         """Run the MCP server."""
