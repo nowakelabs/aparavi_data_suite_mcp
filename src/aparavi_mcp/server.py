@@ -1182,6 +1182,138 @@ class AparaviMCPServer:
     _aql_reference_cache = None
     _aql_reference_cache_time = None
     
+    # Definitive list of valid Aparavi fields - prevents LLM hallucination
+    VALID_APARAVI_FIELDS = {
+        # Core file fields
+        'name': 'File name',
+        'path': 'Full file path', 
+        'parentPath': 'Directory path within Aparavi (virtual)',
+        'localPath': 'Actual file system path',
+        'size': 'Size in bytes',
+        
+        # Unique identifiers
+        'objectId': 'Unique identifier for each file and folder in the Aparavi system',
+        
+        # Time fields
+        'accessTime': 'Last accessed time',
+        'createTime': 'Created time', 
+        'modifyTime': 'Last modified time',
+        
+        # Document-specific time fields
+        'docCreateTime': 'Date that the document was created',
+        'docModifyTime': 'Date that the document was last modified',
+        
+        # File properties
+        'extension': 'File extension',
+        'osOwner': 'OS-level file owner',
+        'osPermission': 'A file\'s Operating System individual permission',
+        'osPermissions': 'The Operating Systems permissions associated with a file as a set',
+        
+        # Document creator/modifier fields
+        'docCreator': 'User by whom the document was created',
+        'docModifier': 'User by whom the document was last modified',
+        
+        # Classification fields
+        'classification': 'Primary classification',
+        'classifications': 'All matching classifications',
+        'confidence': 'Classification confidence score',
+        
+        # Duplicate detection
+        'dupCount': 'Number of identical copies of a file found in an Aggregator\'s database',
+        'dupKey': 'Cryptographic algorithm representing the unique content of a file',
+        
+        # Metadata fields
+        'metadata': 'A document internal information (ex: creator, original create date, modification date, etc.)',
+        'metadataObject': 'A document internal information in JSON format (ex: creator, original create date, modification date, etc.)',
+        
+        # User tagging
+        'userTags': 'Set of tags for files',
+        
+        # System fields
+        'ClassID': 'Object type identifier (always use idxobject for files)'
+    }
+    
+    # Common field aliases that LLMs might use incorrectly
+    FIELD_ALIASES = {
+        'filename': 'name',
+        'file_name': 'name',
+        'filepath': 'path',
+        'file_path': 'path',
+        'file_size': 'size',
+        'filesize': 'size',
+        'created': 'createTime',
+        'created_time': 'createTime',
+        'modified': 'modifyTime',
+        'modified_time': 'modifyTime',
+        'last_modified': 'modifyTime',
+        'accessed': 'accessTime',
+        'access_time': 'accessTime',
+        'last_accessed': 'accessTime',
+        'file_extension': 'extension',
+        'ext': 'extension',
+        'owner': 'osOwner',
+        'permissions': 'osPermissions',
+        'permission': 'osPermission',
+        'duplicate_count': 'dupCount',
+        'dup_count': 'dupCount',
+        'hash': 'dupKey',
+        'content_hash': 'dupKey',
+        'tags': 'userTags',
+        'user_tags': 'userTags',
+        'doc_creator': 'docCreator',
+        'document_creator': 'docCreator',
+        'doc_modifier': 'docModifier',
+        'document_modifier': 'docModifier',
+        'doc_create_time': 'docCreateTime',
+        'document_create_time': 'docCreateTime',
+        'doc_modify_time': 'docModifyTime',
+        'document_modify_time': 'docModifyTime',
+        # objectId aliases
+        'object_id': 'objectId',
+        'id': 'objectId',
+        'file_id': 'objectId',
+        'unique_id': 'objectId',
+        'identifier': 'objectId',
+        'uid': 'objectId'
+    }
+    
+    def _validate_fields(self, fields: List[str]) -> tuple[List[str], List[str]]:
+        """Validate and normalize field names, returning valid and invalid fields."""
+        valid_fields = []
+        invalid_fields = []
+        
+        for field in fields:
+            if field in self.VALID_APARAVI_FIELDS:
+                valid_fields.append(field)
+            elif field in self.FIELD_ALIASES:
+                # Auto-correct common aliases
+                corrected_field = self.FIELD_ALIASES[field]
+                valid_fields.append(corrected_field)
+                self.logger.info(f"Auto-corrected field '{field}' to '{corrected_field}'")
+            else:
+                invalid_fields.append(field)
+        
+        return valid_fields, invalid_fields
+    
+    def _get_field_suggestions(self, invalid_field: str) -> List[str]:
+        """Get field suggestions for invalid field names using fuzzy matching."""
+        import difflib
+        
+        all_fields = list(self.VALID_APARAVI_FIELDS.keys()) + list(self.FIELD_ALIASES.keys())
+        suggestions = difflib.get_close_matches(invalid_field.lower(), 
+                                              [f.lower() for f in all_fields], 
+                                              n=3, cutoff=0.6)
+        
+        # Map back to original case
+        result = []
+        for suggestion in suggestions:
+            for field in all_fields:
+                if field.lower() == suggestion:
+                    result.append(field)
+                    break
+        
+        return result[:3]  # Return top 3 suggestions
+    
     def _load_aql_reference(self) -> Dict[str, Any]:
         """Load and cache AQL reference data for performance."""
         import time
