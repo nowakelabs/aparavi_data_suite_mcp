@@ -1,6 +1,5 @@
 """
 Main MCP server implementation for Aparavi Data Suite.
-This simplified version avoids the TaskGroup issues present in the standard MCP SDK.
 """
 
 import asyncio
@@ -332,7 +331,7 @@ class AparaviMCPServer:
                                 },
                                 "include_tags": {
                                     "type": "boolean",
-                                    "default": true,
+                                    "default": True,
                                     "description": "Include userTags field in results"
                                 }
                             }
@@ -2118,422 +2117,12 @@ class AparaviMCPServer:
         response += f"## Tool Quick Reference\n\n"
         response += f"- **Predefined Analysis:** `run_aparavi_report` (20 reports, 5 workflows)\n"
         response += f"- **Custom Analysis:** `generate_aql_query` → `validate_aql_query` → `execute_custom_aql_query`\n"
-        response += f"- **File Tagging:** `manage_tag_definitions` → `apply_file_tags` → `search_files_by_tags`\n"
-        response += f"- **Tag Workflows:** `tag_workflow_operations` for complex tagging operations\n"
         response += f"- **System Check:** `health_check` or `server_info`\n\n"
         
         response += f"*Want more detail? Call guide_start_here with context_window='large'*\n"
         response += f"*Want just the essentials? Use context_window='small'*"
         
         return response
-    
-    async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle incoming MCP requests and route to appropriate handlers."""
-        method = request.get("method")
-        params = request.get("params", {})
-        request_id = request.get("id")
-        
-        self.logger.debug(f"Handling request: {method} (id: {request_id})")
-        
-        # Handle missing method
-        if not method:
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32600,
-                    "message": "Invalid Request: missing method"
-                }
-            }
-        
-        try:
-            if method == "initialize":
-                result = await self.handle_initialize(params)
-            elif method == "tools/list":
-                result = await self.handle_list_tools(params)
-            elif method == "tools/call":
-                result = await self.handle_call_tool(params)
-            elif method == "resources/list":
-                result = await self.handle_list_resources(params)
-            elif method == "prompts/list":
-                result = await self.handle_list_prompts(params)
-            elif method == "notifications/initialized":
-                # Handle the initialized notification - no response needed
-                self.logger.info("Received initialized notification")
-                return None
-            else:
-                error_msg = f"Method not found: {method}"
-                self.logger.error(error_msg)
-                
-                # For notifications (no id), don't send a response
-                if request_id is None:
-                    return None
-                    
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {
-                        "code": -32601,
-                        "message": error_msg
-                    }
-                }
-            
-            # For notifications (no id), don't send a response
-            if request_id is None:
-                return None
-            
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": result
-            }
-            
-        except Exception as e:
-            error_msg = f"Internal error handling {method}: {format_error_message(e)}"
-            self.logger.error(error_msg, exc_info=True)
-            
-            # For notifications (no id), don't send a response
-            if request_id is None:
-                return None
-                
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32603,
-                    "message": error_msg
-                }
-            }
-    
-    async def handle_list_resources(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle resources/list request."""
-        self.logger.debug("Listing available resources")
-        
-        resources = [
-            {
-                "name": "Aparavi Data Suite API Documentation",
-                "description": "Official API documentation for Aparavi Data Suite",
-                "url": "https://aparavi.com/docs/api"
-            },
-            {
-                "name": "Aparavi Data Suite Community Forum",
-                "description": "Community forum for discussing Aparavi Data Suite and related topics",
-                "url": "https://community.aparavi.com"
-            }
-        ]
-        
-        return {
-            "resources": resources
-        }
-    
-    async def handle_list_prompts(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle prompts/list request."""
-        self.logger.debug("Listing available prompts")
-        
-        prompts = [
-            {
-                "name": "Get started with Aparavi Data Suite",
-                "description": "Begin your journey with Aparavi Data Suite",
-                "prompt": "What do you want to do with Aparavi Data Suite?"
-            },
-            {
-                "name": "Explore Aparavi Data Suite features",
-                "description": "Learn about the features of Aparavi Data Suite",
-                "prompt": "What features of Aparavi Data Suite are you interested in?"
-            }
-        ]
-        
-        return {
-            "prompts": prompts
-        }
-    
-    async def run(self) -> None:
-        """Run the MCP server."""
-        self.logger.info("Starting Aparavi Data Suite MCP Server")
-        
-        try:
-            # Initialize Aparavi Data Suite client connection
-            await self.aparavi_client.initialize()
-            
-            # Read from stdin and write to stdout
-            while True:
-                try:
-                    # Read JSON-RPC request from stdin
-                    line = await asyncio.to_thread(sys.stdin.readline)
-                    if not line:
-                        break
-                    
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # Parse JSON request
-                    try:
-                        request = json.loads(line)
-                        self.logger.debug(f"Received request: {request}")
-                    except json.JSONDecodeError as e:
-                        self.logger.error(f"Invalid JSON received: {line[:100]}... Error: {e}")
-                        continue
-                    
-                    # Handle request
-                    try:
-                        response = await self.handle_request(request)
-                        self.logger.debug(f"Generated response: {response}")
-                    except Exception as e:
-                        self.logger.error(f"Error handling request: {e}", exc_info=True)
-                        continue
-                    
-                    # Send JSON response to stdout (only if response is not None)
-                    if response is not None:
-                        try:
-                            # Ensure clean JSON output without extra whitespace
-                            response_json = json.dumps(response, separators=(',', ':'))
-                            print(response_json, flush=True)
-                            self.logger.debug(f"Sent response: {response_json}")
-                        except (OSError, IOError, UnicodeEncodeError) as e:
-                            # Handle case where stdout is closed (e.g., when Claude Desktop disconnects)
-                            self.logger.debug(f"Stdout write failed (connection closed): {e}")
-                            break
-                        except Exception as e:
-                            self.logger.error(f"Error serializing response: {e}")
-                            continue
-                    else:
-                        self.logger.debug("No response sent (notification or null response)")
-                except json.JSONDecodeError as e:
-                    self.logger.error(f"Invalid JSON received: {e}")
-                    continue
-                except Exception as e:
-                    self.logger.error(f"Error processing request: {e}")
-                    continue
-                    
-        except KeyboardInterrupt:
-            self.logger.info("Server shutdown requested")
-        except Exception as e:
-            self.logger.error(f"Server error: {format_error_message(e)}")
-            raise
-        finally:
-            # Ensure proper cleanup
-            try:
-                await self.aparavi_client.close()
-            except Exception as e:
-                self.logger.warning(f"Error during cleanup: {e}")
-            self.logger.info("Aparavi Data Suite MCP Server stopped")
-    
-    # ==================== TAGGING TOOL HANDLERS ====================
-    
-    async def _handle_manage_tag_definitions(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tag definition management (create/list/delete)."""
-        try:
-            action = arguments.get("action")
-            tag_names = arguments.get("tag_names", [])
-            
-            if not action:
-                return {
-                    "content": [{"type": "text", "text": "Error: action parameter is required"}],
-                    "isError": True
-                }
-            
-            # Check if client object ID is configured
-            if not self.aparavi_client.client_object_id:
-                return {
-                    "content": [{
-                        "type": "text", 
-                        "text": "Error: Client object ID not configured. Please set APARAVI_CLIENT_OBJECT_ID in your .env file.\n\nExample format:\nAPARAVI_CLIENT_OBJECT_ID=f7388d0e-apag-4e86-86f0-1fbedb0b63db"
-                    }],
-                    "isError": True
-                }
-            
-            # Execute tag management operation
-            result = await self.aparavi_client.manage_tag_definitions(action, tag_names)
-            
-            # Format response based on action
-            if action == "list":
-                tag_definitions = result.get("tagDefinitions", [])
-                if tag_definitions:
-                    response = f"# Available Tag Definitions ({len(tag_definitions)} total)\n\n"
-                    for i, tag in enumerate(tag_definitions, 1):
-                        response += f"{i}. `{tag}`\n"
-                else:
-                    response = "# No Tag Definitions Found\n\nNo tags are currently defined in the system."
-            
-            elif action == "create":
-                response = f"# Tag Creation Successful\n\nCreated {len(tag_names)} tag definitions:\n\n"
-                for tag in tag_names:
-                    response += f"- `{tag}`\n"
-                response += "\nTags are now available for use in file tagging operations."
-            
-            elif action == "delete":
-                response = f"# Tag Deletion Successful\n\nDeleted {len(tag_names)} tag definitions:\n\n"
-                for tag in tag_names:
-                    response += f"- `{tag}`\n"
-                response += "\nThese tags are no longer available for new tagging operations."
-            
-            return {
-                "content": [{"type": "text", "text": response}]
-            }
-            
-        except Exception as e:
-            error_msg = f"Tag definition management failed: {format_error_message(e)}"
-            self.logger.error(error_msg)
-            return {
-                "content": [{"type": "text", "text": error_msg}],
-                "isError": True
-            }
-    
-    async def _handle_apply_file_tags(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle file tagging operations (apply/remove)."""
-        try:
-            action = arguments.get("action")
-            file_selection = arguments.get("file_selection", {})
-            tag_names = arguments.get("tag_names", [])
-            
-            if not action or not file_selection or not tag_names:
-                return {
-                    "content": [{"type": "text", "text": "Error: action, file_selection, and tag_names are required"}],
-                    "isError": True
-                }
-            
-            # Check if client object ID is configured
-            if not self.aparavi_client.client_object_id:
-                return {
-                    "content": [{
-                        "type": "text", 
-                        "text": "Error: Client object ID not configured. Please set APARAVI_CLIENT_OBJECT_ID in your .env file."
-                    }],
-                    "isError": True
-                }
-            
-            # Get file objects based on selection method
-            method = file_selection.get("method")
-            if method == "file_objects":
-                file_objects = file_selection.get("file_objects", [])
-            elif method == "search_query":
-                search_query = file_selection.get("search_query")
-                if not search_query:
-                    return {
-                        "content": [{"type": "text", "text": "Error: search_query is required when method is 'search_query'"}],
-                        "isError": True
-                    }
-                file_objects = await self.aparavi_client.extract_file_objects_from_aql(search_query)
-            else:
-                return {
-                    "content": [{"type": "text", "text": "Error: file_selection method must be 'file_objects' or 'search_query'"}],
-                    "isError": True
-                }
-            
-            if not file_objects:
-                return {
-                    "content": [{"type": "text", "text": "No valid file objects found for tagging operation"}],
-                    "isError": True
-                }
-            
-            # Execute file tagging operation
-            result = await self.aparavi_client.manage_file_tags(action, file_objects, tag_names)
-            
-            # Format response
-            action_verb = "applied to" if action == "apply" else "removed from"
-            response = f"# File Tagging Successful\n\n"
-            response += f"**Operation:** {action.title()} tags\n"
-            response += f"**Files processed:** {len(file_objects)}\n"
-            response += f"**Tags {action_verb}:** {', '.join(f'`{tag}`' for tag in tag_names)}\n\n"
-            
-            if method == "search_query":
-                response += f"**Selection method:** AQL Query\n"
-                response += f"**Query:** `{search_query[:100]}{'...' if len(search_query) > 100 else ''}`\n"
-            else:
-                response += f"**Selection method:** Direct file objects\n"
-            
-            response += f"\nTagging operation completed successfully."
-            
-            return {
-                "content": [{"type": "text", "text": response}]
-            }
-            
-        except Exception as e:
-            error_msg = f"File tagging operation failed: {format_error_message(e)}"
-            self.logger.error(error_msg)
-            return {
-                "content": [{"type": "text", "text": error_msg}],
-                "isError": True
-            }
-    
-    async def _handle_search_files_by_tags(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tag-based file search operations."""
-        try:
-            tag_filters = arguments.get("tag_filters", {})
-            additional_filters = arguments.get("additional_filters", "")
-            output_options = arguments.get("output_options", {})
-            
-            if not tag_filters:
-                return {
-                    "content": [{"type": "text", "text": "Error: tag_filters parameter is required"}],
-                    "isError": True
-                }
-            
-            # Set default output options
-            format_type = output_options.get("format", "json")
-            limit = output_options.get("limit", 1000)
-            include_tags = output_options.get("include_tags", True)
-            
-            # Build AQL query using tag filters
-            aql_query = self.aparavi_client.build_tag_search_query(tag_filters, additional_filters, limit)
-            
-            # Execute the query
-            results = await self.aparavi_client.execute_query(aql_query, format_type)
-            
-            # Format response
-            if format_type == "csv":
-                response = f"# Tag-Based File Search Results\n\n"
-                response += f"**Search criteria:**\n"
-                
-                include_tags_list = tag_filters.get("include_tags", [])
-                exclude_tags_list = tag_filters.get("exclude_tags", [])
-                tag_logic = tag_filters.get("tag_logic", "OR")
-                
-                if include_tags_list:
-                    response += f"- Include tags ({tag_logic}): {', '.join(f'`{tag}`' for tag in include_tags_list)}\n"
-                if exclude_tags_list:
-                    response += f"- Exclude tags: {', '.join(f'`{tag}`' for tag in exclude_tags_list)}\n"
-                if additional_filters:
-                    response += f"- Additional filters: `{additional_filters}`\n"
-                
-                response += f"\n**Results:** {limit} max results in CSV format\n\n"
-                response += f"```csv\n{results}\n```"
-            
-            else:  # JSON format
-                if isinstance(results, dict) and "data" in results:
-                    result_count = len(results["data"])
-                    response = f"# Tag-Based File Search Results\n\n"
-                    response += f"**Found {result_count} files matching criteria**\n\n"
-                    
-                    include_tags_list = tag_filters.get("include_tags", [])
-                    exclude_tags_list = tag_filters.get("exclude_tags", [])
-                    tag_logic = tag_filters.get("tag_logic", "OR")
-                    
-                    response += f"**Search criteria:**\n"
-                    if include_tags_list:
-                        response += f"- Include tags ({tag_logic}): {', '.join(f'`{tag}`' for tag in include_tags_list)}\n"
-                    if exclude_tags_list:
-                        response += f"- Exclude tags: {', '.join(f'`{tag}`' for tag in exclude_tags_list)}\n"
-                    if additional_filters:
-                        response += f"- Additional filters: `{additional_filters}`\n"
-                    
-                    response += f"\n**Query executed:**\n```sql\n{aql_query}\n```\n\n"
-                    response += f"**Results:**\n```json\n{json.dumps(results, indent=2)}\n```"
-                else:
-                    response = f"# Tag-Based File Search Results\n\nNo results found or invalid response format."
-            
-            return {
-                "content": [{"type": "text", "text": response}]
-            }
-            
-        except Exception as e:
-            error_msg = f"Tag-based file search failed: {format_error_message(e)}"
-            self.logger.error(error_msg)
-            return {
-                "content": [{"type": "text", "text": error_msg}],
-                "isError": True
-            }
     
     async def _handle_tag_workflow_operations(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle high-level tagging workflows."""
@@ -2747,6 +2336,198 @@ class AparaviMCPServer:
         return {
             "content": [{"type": "text", "text": response}]
         }
+
+    async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle incoming MCP requests and route to appropriate handlers."""
+        method = request.get("method")
+        params = request.get("params", {})
+        request_id = request.get("id")
+        
+        self.logger.debug(f"Handling request: {method} (id: {request_id})")
+        
+        # Handle missing method
+        if not method:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "Invalid Request: missing method"
+                }
+            }
+        
+        try:
+            if method == "initialize":
+                result = await self.handle_initialize(params)
+            elif method == "tools/list":
+                result = await self.handle_list_tools(params)
+            elif method == "tools/call":
+                result = await self.handle_call_tool(params)
+            elif method == "resources/list":
+                result = await self.handle_list_resources(params)
+            elif method == "prompts/list":
+                result = await self.handle_list_prompts(params)
+            elif method == "notifications/initialized":
+                # Handle the initialized notification - no response needed
+                self.logger.info("Received initialized notification")
+                return None
+            else:
+                error_msg = f"Method not found: {method}"
+                self.logger.error(error_msg)
+                
+                # For notifications (no id), don't send a response
+                if request_id is None:
+                    return None
+                    
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": error_msg
+                    }
+                }
+            
+            # For notifications (no id), don't send a response
+            if request_id is None:
+                return None
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": result
+            }
+            
+        except Exception as e:
+            error_msg = f"Internal error handling {method}: {format_error_message(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            
+            # For notifications (no id), don't send a response
+            if request_id is None:
+                return None
+                
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32603,
+                    "message": error_msg
+                }
+            }
+    
+    async def handle_list_resources(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle resources/list request."""
+        self.logger.debug("Listing available resources")
+        
+        resources = [
+            {
+                "name": "Aparavi Data Suite API Documentation",
+                "description": "Official API documentation for Aparavi Data Suite",
+                "url": "https://aparavi.com/docs/api"
+            },
+            {
+                "name": "Aparavi Data Suite Community Forum",
+                "description": "Community forum for discussing Aparavi Data Suite and related topics",
+                "url": "https://community.aparavi.com"
+            }
+        ]
+        
+        return {
+            "resources": resources
+        }
+    
+    async def handle_list_prompts(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle prompts/list request."""
+        self.logger.debug("Listing available prompts")
+        
+        prompts = [
+            {
+                "name": "Get started with Aparavi Data Suite",
+                "description": "Begin your journey with Aparavi Data Suite",
+                "prompt": "What do you want to do with Aparavi Data Suite?"
+            },
+            {
+                "name": "Explore Aparavi Data Suite features",
+                "description": "Learn about the features of Aparavi Data Suite",
+                "prompt": "What features of Aparavi Data Suite are you interested in?"
+            }
+        ]
+        
+        return {
+            "prompts": prompts
+        }
+    
+    async def run(self) -> None:
+        """Run the MCP server."""
+        self.logger.info("Starting Aparavi Data Suite MCP Server")
+        
+        try:
+            # Initialize Aparavi Data Suite client connection
+            await self.aparavi_client.initialize()
+            
+            # Read from stdin and write to stdout
+            while True:
+                try:
+                    # Read JSON-RPC request from stdin
+                    line = await asyncio.to_thread(sys.stdin.readline)
+                    if not line:
+                        break
+                    
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Parse JSON request
+                    try:
+                        request = json.loads(line)
+                        self.logger.debug(f"Received request: {request}")
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"Invalid JSON received: {line[:100]}... Error: {e}")
+                        continue
+                    
+                    # Handle request
+                    try:
+                        response = await self.handle_request(request)
+                        self.logger.debug(f"Generated response: {response}")
+                    except Exception as e:
+                        self.logger.error(f"Error handling request: {e}", exc_info=True)
+                        continue
+                    
+                    # Send JSON response to stdout (only if response is not None)
+                    if response is not None:
+                        try:
+                            # Ensure clean JSON output without extra whitespace
+                            response_json = json.dumps(response, separators=(',', ':'))
+                            print(response_json, flush=True)
+                            self.logger.debug(f"Sent response: {response_json}")
+                        except (OSError, IOError, UnicodeEncodeError) as e:
+                            # Handle case where stdout is closed (e.g., when Claude Desktop disconnects)
+                            self.logger.debug(f"Stdout write failed (connection closed): {e}")
+                            break
+                        except Exception as e:
+                            self.logger.error(f"Error serializing response: {e}")
+                            continue
+                    else:
+                        self.logger.debug("No response sent (notification or null response)")
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Invalid JSON received: {e}")
+                    continue
+                except Exception as e:
+                    self.logger.error(f"Error processing request: {e}")
+                    continue
+                    
+        except KeyboardInterrupt:
+            self.logger.info("Server shutdown requested")
+        except Exception as e:
+            self.logger.error(f"Server error: {format_error_message(e)}")
+            raise
+        finally:
+            # Ensure proper cleanup
+            try:
+                await self.aparavi_client.close()
+            except Exception as e:
+                self.logger.warning(f"Error during cleanup: {e}")
+            self.logger.info("Aparavi Data Suite MCP Server stopped")
 
 
 async def async_main() -> None:
