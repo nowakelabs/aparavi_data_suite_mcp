@@ -22,6 +22,7 @@ class AparaviConfig(BaseModel):
     api_version: str = Field(default="v3", description="Aparavi Data Suite API version")
     timeout: int = Field(default=30, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum number of retries")
+    client_object_id: Optional[str] = Field(default=None, description="Client object ID for tagging operations")
     
     @property
     def base_url(self) -> str:
@@ -69,7 +70,8 @@ def load_config(config_path: Optional[str] = None) -> Config:
         password=os.getenv("APARAVI_PASSWORD", ""),
         api_version=os.getenv("APARAVI_API_VERSION", "v3"),
         timeout=int(os.getenv("APARAVI_TIMEOUT", "30")),
-        max_retries=int(os.getenv("APARAVI_MAX_RETRIES", "3"))
+        max_retries=int(os.getenv("APARAVI_MAX_RETRIES", "3")),
+        client_object_id=os.getenv("APARAVI_CLIENT_OBJECT_ID")
     )
     
     server_config = MCPServerConfig(
