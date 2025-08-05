@@ -1241,7 +1241,11 @@ class AparaviMCPServer:
         response += f"4. **run_aparavi_report** - 20 predefined reports + 5 workflows\n"
         response += f"5. **validate_aql_query** - Syntax validation without execution\n"
         response += f"6. **execute_custom_aql_query** - Validate and execute custom queries\n"
-        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n\n"
+        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n"
+        response += f"8. **manage_tag_definitions** - Create, list, or delete tag definitions\n"
+        response += f"9. **apply_file_tags** - Apply or remove tags from files using bulk operations\n"
+        response += f"10. **search_files_by_tags** - Search files using tag-based criteria with advanced filtering\n"
+        response += f"11. **tag_workflow_operations** - Execute high-level tagging workflows for common use cases\n\n"
         
         response += f"*Ready to proceed? Execute the recommended Step 1 above to get started!*"
         
@@ -2069,7 +2073,11 @@ class AparaviMCPServer:
         response += f"4. **run_aparavi_report** - 20 predefined reports + 5 workflows\n"
         response += f"5. **validate_aql_query** - Syntax validation without execution\n"
         response += f"6. **execute_custom_aql_query** - Validate and execute custom queries\n"
-        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n\n"
+        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n"
+        response += f"8. **manage_tag_definitions** - Create, list, or delete tag definitions\n"
+        response += f"9. **apply_file_tags** - Apply or remove tags from files using bulk operations\n"
+        response += f"10. **search_files_by_tags** - Search files using tag-based criteria with advanced filtering\n"
+        response += f"11. **tag_workflow_operations** - Execute high-level tagging workflows for common use cases\n\n"
         
         response += f"*Ready to proceed? Execute the recommended Step 1 above to get started!*"
         
@@ -2110,6 +2118,8 @@ class AparaviMCPServer:
         response += f"## Tool Quick Reference\n\n"
         response += f"- **Predefined Analysis:** `run_aparavi_report` (20 reports, 5 workflows)\n"
         response += f"- **Custom Analysis:** `generate_aql_query` → `validate_aql_query` → `execute_custom_aql_query`\n"
+        response += f"- **File Tagging:** `manage_tag_definitions` → `apply_file_tags` → `search_files_by_tags`\n"
+        response += f"- **Tag Workflows:** `tag_workflow_operations` for complex tagging operations\n"
         response += f"- **System Check:** `health_check` or `server_info`\n\n"
         
         response += f"*Want more detail? Call guide_start_here with context_window='large'*\n"

@@ -29,6 +29,10 @@ A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop 
 - **`validate_aql_query`**: Validate custom AQL queries without execution
 - **`execute_custom_aql_query`**: Validate and execute custom AQL queries with raw JSON output
 - **`generate_aql_query`**: Intelligent AQL query builder for custom analysis not covered by predefined reports
+- **`manage_tag_definitions`**: Create, list, or delete tag definitions in the global tag registry
+- **`apply_file_tags`**: Apply or remove tags from files using bulk operations with direct file specification or AQL query-based selection
+- **`search_files_by_tags`**: Search files using tag-based criteria with advanced filtering options and include/exclude logic
+- **`tag_workflow_operations`**: Execute high-level tagging workflows for common use cases like bulk tagging, retagging, and cleanup
 
 ### 🎯 Tool Selection Guide
 
@@ -63,11 +67,36 @@ A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop 
 6. **`health_check`** - Use to verify system status and API connectivity
 7. **`server_info`** - Use to view server configuration and capabilities
 
+8. **`manage_tag_definitions`** - Use to manage the global tag registry
+   - Create new tags for classification and organization
+   - List all available tags to see what's already defined
+   - Delete unused tags to keep the registry clean
+
+9. **`apply_file_tags`** - Use to tag files in bulk operations
+   - Tag files directly by specifying file objects (objectId + instanceId)
+   - Tag files found by AQL queries for efficient bulk operations
+   - Remove tags from files when reorganizing or cleaning up
+
+10. **`search_files_by_tags`** - Use to find files based on their tags
+    - Search files that have specific tags (include logic)
+    - Exclude files with certain tags (exclude logic)
+    - Combine tag searches with additional AQL filters
+    - Use AND/OR logic for complex tag-based queries
+
+11. **`tag_workflow_operations`** - Use for complex tagging workflows
+    - Execute common tagging patterns like "find and tag"
+    - Perform bulk retagging operations
+    - Generate tag reports and analytics
+    - Clean up and reorganize tag structures
+
 **Recommended Workflows:**
 ```
 🆕 New User: guide_start_here → [recommended tool sequence]
 📊 Standard Analysis: run_aparavi_report
 🔧 Custom Analysis: generate_aql_query → validate_aql_query → execute_custom_aql_query
+🏷️ File Tagging: manage_tag_definitions → apply_file_tags → search_files_by_tags
+📋 Tag Management: manage_tag_definitions → tag_workflow_operations
+🔍 Tag-based Search: search_files_by_tags → [analysis or further tagging]
 🚨 Troubleshooting: health_check → [diagnostic steps]
 ```
 
