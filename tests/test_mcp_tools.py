@@ -280,6 +280,174 @@ class MCPToolTester:
         for test_case in test_cases:
             await self.test_tool("generate_aql_query", test_case["name"], test_case["args"])
     
+    async def test_manage_tag_definitions(self):
+        """Test the manage_tag_definitions tool."""
+        self.logger.info("\n=== Testing manage_tag_definitions tool ===")
+        
+        test_cases = [
+            {
+                "name": "List all tag definitions",
+                "args": {"action": "list"}
+            },
+            {
+                "name": "Create new tag definitions",
+                "args": {
+                    "action": "create",
+                    "tag_names": ["test:category1", "test:category2", "project:testing"]
+                }
+            },
+            {
+                "name": "List tags after creation",
+                "args": {"action": "list"}
+            },
+            {
+                "name": "Delete test tag definitions",
+                "args": {
+                    "action": "delete",
+                    "tag_names": ["test:category1", "test:category2", "project:testing"]
+                }
+            }
+        ]
+        
+        for test_case in test_cases:
+            await self.test_tool("manage_tag_definitions", test_case["name"], test_case["args"])
+    
+    async def test_apply_file_tags(self):
+        """Test the apply_file_tags tool."""
+        self.logger.info("\n=== Testing apply_file_tags tool ===")
+        
+        # First create some test tags
+        await self.test_tool("manage_tag_definitions", "Create test tags for file tagging", {
+            "action": "create",
+            "tag_names": ["test:document", "test:budget", "test:handbook"]
+        })
+        
+        test_cases = [
+            {
+                "name": "Tag PDF files via AQL query",
+                "args": {
+                    "action": "apply",
+                    "file_selection": {
+                        "method": "search_query",
+                        "search_query": "SELECT name,objectId,instanceId FROM STORE('/') WHERE name IN ('2013-14-budget.pdf', '2019-2020-Employee-Handbook-.pdf')"
+                    },
+                    "tag_names": ["test:document", "test:budget"]
+                }
+            },
+            {
+                "name": "Tag specific file by object ID",
+                "args": {
+                    "action": "apply",
+                    "file_selection": {
+                        "method": "file_objects",
+                        "file_objects": [
+                            {
+                                "objectId": "07d360d1-iobj-4dcb-a5df-619172de6392@f7388d0e-apag-4e86-86f0-1fbedb0b63db",
+                                "instanceId": 1893
+                            }
+                        ]
+                    },
+                    "tag_names": ["test:handbook"]
+                }
+            },
+            {
+                "name": "Remove tags from files",
+                "args": {
+                    "action": "remove",
+                    "file_selection": {
+                        "method": "search_query",
+                        "search_query": "SELECT name,objectId,instanceId FROM STORE('/') WHERE name = '2013-14-budget.pdf'"
+                    },
+                    "tag_names": ["test:budget"]
+                }
+            }
+        ]
+        
+        for test_case in test_cases:
+            await self.test_tool("apply_file_tags", test_case["name"], test_case["args"])
+        
+        # Clean up test tags
+        await self.test_tool("manage_tag_definitions", "Clean up test tags", {
+            "action": "delete",
+            "tag_names": ["test:document", "test:budget", "test:handbook"]
+        })
+    
+    async def test_search_files_by_tags(self):
+        """Test the search_files_by_tags tool."""
+        self.logger.info("\n=== Testing search_files_by_tags tool ===")
+        
+        # First create some test tags and apply them
+        await self.test_tool("manage_tag_definitions", "Create test tags for search", {
+            "action": "create",
+            "tag_names": ["search:test1", "search:test2"]
+        })
+        
+        await self.test_tool("apply_file_tags", "Apply test tags for search", {
+            "action": "apply",
+            "file_selection": {
+                "method": "search_query",
+                "search_query": "SELECT name,objectId,instanceId FROM STORE('/') WHERE name = '2013-14-budget.pdf'"
+            },
+            "tag_names": ["search:test1", "search:test2"]
+        })
+        
+        test_cases = [
+            {
+                "name": "Search files with single tag",
+                "args": {
+                    "tag_filters": {
+                        "include_tags": ["search:test1"],
+                        "match_type": "any"
+                    }
+                }
+            },
+            {
+                "name": "Search files with multiple tags (any match)",
+                "args": {
+                    "tag_filters": {
+                        "include_tags": ["search:test1", "search:test2"],
+                        "match_type": "any"
+                    }
+                }
+            },
+            {
+                "name": "Search files with multiple tags (all match)",
+                "args": {
+                    "tag_filters": {
+                        "include_tags": ["search:test1", "search:test2"],
+                        "match_type": "all"
+                    }
+                }
+            },
+            {
+                "name": "Search with non-existent tag",
+                "args": {
+                    "tag_filters": {
+                        "include_tags": ["nonexistent:tag"],
+                        "match_type": "any"
+                    }
+                }
+            }
+        ]
+        
+        for test_case in test_cases:
+            await self.test_tool("search_files_by_tags", test_case["name"], test_case["args"])
+        
+        # Clean up test tags
+        await self.test_tool("apply_file_tags", "Remove test tags for cleanup", {
+            "action": "remove",
+            "file_selection": {
+                "method": "search_query",
+                "search_query": "SELECT name,objectId,instanceId FROM STORE('/') WHERE name = '2013-14-budget.pdf'"
+            },
+            "tag_names": ["search:test1", "search:test2"]
+        })
+        
+        await self.test_tool("manage_tag_definitions", "Delete test tags for cleanup", {
+            "action": "delete",
+            "tag_names": ["search:test1", "search:test2"]
+        })
+    
     async def run_all_tests(self):
         """Run all tool tests."""
         self.logger.info("Starting comprehensive MCP tool testing...")
@@ -298,6 +466,9 @@ class MCPToolTester:
             await self.test_validate_aql_query()
             await self.test_execute_custom_aql_query()
             await self.test_generate_aql_query()
+            await self.test_manage_tag_definitions()
+            await self.test_apply_file_tags()
+            await self.test_search_files_by_tags()
             
         except Exception as e:
             self.logger.error(f"Error during testing: {e}")

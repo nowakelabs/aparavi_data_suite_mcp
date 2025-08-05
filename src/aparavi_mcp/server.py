@@ -1,6 +1,5 @@
 """
 Main MCP server implementation for Aparavi Data Suite.
-This simplified version avoids the TaskGroup issues present in the standard MCP SDK.
 """
 
 import asyncio
@@ -216,6 +215,149 @@ class AparaviMCPServer:
                     },
                     "required": ["business_question"]
                 }
+            },
+            {
+                "name": "manage_tag_definitions",
+                "description": "Create, list, or delete tag definitions in the global tag registry. Use 'list' to see all available tags, 'create' to add new tags, or 'delete' to remove unused tags.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["create", "list", "delete"],
+                            "description": "Action to perform on tag definitions"
+                        },
+                        "tag_names": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Array of tag names (required for create/delete operations)"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
+                "name": "apply_file_tags",
+                "description": "Apply or remove tags from files using bulk operations. Supports both direct file specification and AQL query-based file selection for efficient tagging workflows.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["apply", "remove"],
+                            "description": "Whether to apply or remove tags from files"
+                        },
+                        "file_selection": {
+                            "type": "object",
+                            "properties": {
+                                "method": {
+                                    "type": "string",
+                                    "enum": ["file_objects", "search_query"],
+                                    "description": "How to select files to tag - direct objects or AQL search"
+                                },
+                                "file_objects": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "objectId": {"type": "string"},
+                                            "instanceId": {"type": "number"}
+                                        },
+                                        "required": ["objectId", "instanceId"]
+                                    },
+                                    "description": "Direct file objects with objectId and instanceId"
+                                },
+                                "search_query": {
+                                    "type": "string",
+                                    "description": "AQL query to find files to tag (must include objectId and instanceId in SELECT)"
+                                }
+                            },
+                            "required": ["method"]
+                        },
+                        "tag_names": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Tags to apply or remove from the selected files"
+                        }
+                    },
+                    "required": ["action", "file_selection", "tag_names"]
+                }
+            },
+            {
+                "name": "search_files_by_tags",
+                "description": "Search files using tag-based criteria with advanced filtering options. Supports include/exclude tag logic, additional AQL filters, and flexible output formatting.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "tag_filters": {
+                            "type": "object",
+                            "properties": {
+                                "include_tags": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Tags that files must have (OR/AND logic based on tag_logic)"
+                                },
+                                "exclude_tags": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Tags that files must not have"
+                                },
+                                "tag_logic": {
+                                    "type": "string",
+                                    "enum": ["AND", "OR"],
+                                    "default": "OR",
+                                    "description": "Logic for combining include_tags (AND=all tags required, OR=any tag matches)"
+                                }
+                            }
+                        },
+                        "additional_filters": {
+                            "type": "string",
+                            "description": "Additional AQL WHERE conditions (e.g., 'fileSize > 1000000 AND fileExtension = pdf')"
+                        },
+                        "output_options": {
+                            "type": "object",
+                            "properties": {
+                                "format": {
+                                    "type": "string",
+                                    "enum": ["json", "csv"],
+                                    "default": "json",
+                                    "description": "Output format for results"
+                                },
+                                "limit": {
+                                    "type": "number",
+                                    "default": 1000,
+                                    "maximum": 25000,
+                                    "description": "Maximum number of results to return"
+                                },
+                                "include_tags": {
+                                    "type": "boolean",
+                                    "default": True,
+                                    "description": "Include userTags field in results"
+                                }
+                            }
+                        }
+                    },
+                    "required": ["tag_filters"]
+                }
+            },
+            {
+                "name": "tag_workflow_operations",
+                "description": "Execute high-level tagging workflows that combine multiple operations for common use cases like bulk tagging, retagging, reporting, and cleanup.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "workflow": {
+                            "type": "string",
+                            "enum": ["find_and_tag", "retag_files", "tag_report", "cleanup_tags"],
+                            "description": "Workflow to execute"
+                        },
+                        "workflow_params": {
+                            "type": "object",
+                            "description": "Parameters specific to each workflow - varies by workflow type"
+                        }
+                    },
+                    "required": ["workflow", "workflow_params"]
+                }
             }
         ]
         
@@ -245,6 +387,14 @@ class AparaviMCPServer:
                 return await self._handle_execute_custom_aql_query(arguments)
             elif tool_name == "generate_aql_query":
                 return await self._handle_generate_aql_query(arguments)
+            elif tool_name == "manage_tag_definitions":
+                return await self._handle_manage_tag_definitions(arguments)
+            elif tool_name == "apply_file_tags":
+                return await self._handle_apply_file_tags(arguments)
+            elif tool_name == "search_files_by_tags":
+                return await self._handle_search_files_by_tags(arguments)
+            elif tool_name == "tag_workflow_operations":
+                return await self._handle_tag_workflow_operations(arguments)
             else:
                 error_msg = f"Unknown tool: {tool_name}"
                 self.logger.error(error_msg)
@@ -1090,7 +1240,11 @@ class AparaviMCPServer:
         response += f"4. **run_aparavi_report** - 20 predefined reports + 5 workflows\n"
         response += f"5. **validate_aql_query** - Syntax validation without execution\n"
         response += f"6. **execute_custom_aql_query** - Validate and execute custom queries\n"
-        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n\n"
+        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n"
+        response += f"8. **manage_tag_definitions** - Create, list, or delete tag definitions\n"
+        response += f"9. **apply_file_tags** - Apply or remove tags from files using bulk operations\n"
+        response += f"10. **search_files_by_tags** - Search files using tag-based criteria with advanced filtering\n"
+        response += f"11. **tag_workflow_operations** - Execute high-level tagging workflows for common use cases\n\n"
         
         response += f"*Ready to proceed? Execute the recommended Step 1 above to get started!*"
         
@@ -1918,7 +2072,11 @@ class AparaviMCPServer:
         response += f"4. **run_aparavi_report** - 20 predefined reports + 5 workflows\n"
         response += f"5. **validate_aql_query** - Syntax validation without execution\n"
         response += f"6. **execute_custom_aql_query** - Validate and execute custom queries\n"
-        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n\n"
+        response += f"7. **generate_aql_query** - Intelligent AQL query builder\n"
+        response += f"8. **manage_tag_definitions** - Create, list, or delete tag definitions\n"
+        response += f"9. **apply_file_tags** - Apply or remove tags from files using bulk operations\n"
+        response += f"10. **search_files_by_tags** - Search files using tag-based criteria with advanced filtering\n"
+        response += f"11. **tag_workflow_operations** - Execute high-level tagging workflows for common use cases\n\n"
         
         response += f"*Ready to proceed? Execute the recommended Step 1 above to get started!*"
         
@@ -1966,6 +2124,219 @@ class AparaviMCPServer:
         
         return response
     
+    async def _handle_tag_workflow_operations(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle high-level tagging workflows."""
+        try:
+            workflow = arguments.get("workflow")
+            workflow_params = arguments.get("workflow_params", {})
+            
+            if not workflow:
+                return {
+                    "content": [{"type": "text", "text": "Error: workflow parameter is required"}],
+                    "isError": True
+                }
+            
+            # Some workflows don't require parameters
+            if workflow_params is None:
+                workflow_params = {}
+            
+            # Check if client object ID is configured
+            if not self.aparavi_client.client_object_id:
+                return {
+                    "content": [{
+                        "type": "text", 
+                        "text": "Error: Client object ID not configured. Please set APARAVI_CLIENT_OBJECT_ID in your .env file."
+                    }],
+                    "isError": True
+                }
+            
+            if workflow == "find_and_tag":
+                return await self._workflow_find_and_tag(workflow_params)
+            elif workflow == "retag_files":
+                return await self._workflow_retag_files(workflow_params)
+            elif workflow == "tag_report":
+                return await self._workflow_tag_report(workflow_params)
+            elif workflow == "cleanup_tags":
+                return await self._workflow_cleanup_tags(workflow_params)
+            else:
+                return {
+                    "content": [{"type": "text", "text": f"Error: Unknown workflow '{workflow}'. Supported workflows: find_and_tag, retag_files, tag_report, cleanup_tags"}],
+                    "isError": True
+                }
+                
+        except Exception as e:
+            error_msg = f"Tag workflow operation failed: {format_error_message(e)}"
+            self.logger.error(error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+    
+    async def _workflow_find_and_tag(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute find_and_tag workflow."""
+        search_query = params.get("search_query")
+        tag_names = params.get("tag_names", [])
+        
+        if not search_query or not tag_names:
+            return {
+                "content": [{"type": "text", "text": "Error: search_query and tag_names are required for find_and_tag workflow"}],
+                "isError": True
+            }
+        
+        # Find files using AQL query
+        file_objects = await self.aparavi_client.extract_file_objects_from_aql(search_query)
+        
+        if not file_objects:
+            return {
+                "content": [{"type": "text", "text": "No files found matching the search criteria"}]
+            }
+        
+        # Apply tags to found files
+        result = await self.aparavi_client.manage_file_tags("apply", file_objects, tag_names)
+        
+        response = f"# Find and Tag Workflow Completed\n\n"
+        response += f"**Search query:** `{search_query}`\n"
+        response += f"**Files found:** {len(file_objects)}\n"
+        response += f"**Tags applied:** {', '.join(f'`{tag}`' for tag in tag_names)}\n\n"
+        response += f"All matching files have been successfully tagged."
+        
+        return {
+            "content": [{"type": "text", "text": response}]
+        }
+    
+    async def _workflow_retag_files(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute retag_files workflow."""
+        search_query = params.get("search_query")
+        old_tags = params.get("old_tags", [])
+        new_tags = params.get("new_tags", [])
+        
+        if not search_query or not old_tags or not new_tags:
+            return {
+                "content": [{"type": "text", "text": "Error: search_query, old_tags, and new_tags are required for retag_files workflow"}],
+                "isError": True
+            }
+        
+        # Find files using AQL query
+        file_objects = await self.aparavi_client.extract_file_objects_from_aql(search_query)
+        
+        if not file_objects:
+            return {
+                "content": [{"type": "text", "text": "No files found matching the search criteria"}]
+            }
+        
+        # Remove old tags
+        await self.aparavi_client.manage_file_tags("remove", file_objects, old_tags)
+        
+        # Apply new tags
+        await self.aparavi_client.manage_file_tags("apply", file_objects, new_tags)
+        
+        response = f"# Retag Files Workflow Completed\n\n"
+        response += f"**Search query:** `{search_query}`\n"
+        response += f"**Files processed:** {len(file_objects)}\n"
+        response += f"**Old tags removed:** {', '.join(f'`{tag}`' for tag in old_tags)}\n"
+        response += f"**New tags applied:** {', '.join(f'`{tag}`' for tag in new_tags)}\n\n"
+        response += f"All matching files have been successfully retagged."
+        
+        return {
+            "content": [{"type": "text", "text": response}]
+        }
+    
+    async def _workflow_tag_report(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute tag_report workflow."""
+        # Get all tag definitions
+        tag_definitions_result = await self.aparavi_client.manage_tag_definitions("list")
+        tag_definitions = tag_definitions_result.get("tagDefinitions", [])
+        
+        if not tag_definitions:
+            return {
+                "content": [{"type": "text", "text": "# Tag Usage Report\n\nNo tag definitions found in the system."}]
+            }
+        
+        response = f"# Comprehensive Tag Usage Report\n\n"
+        response += f"**Total tag definitions:** {len(tag_definitions)}\n\n"
+        
+        # Analyze usage for each tag
+        response += f"## Tag Usage Analysis\n\n"
+        for tag in tag_definitions:
+            # Search for files with this tag
+            tag_query = f"SELECT COUNT(*) as file_count FROM STORE('/') WHERE userTags LIKE '%;{tag};%'"
+            try:
+                result = await self.aparavi_client.execute_query(tag_query, "json")
+                if isinstance(result, dict) and "data" in result and result["data"]:
+                    count = result["data"][0].get("file_count", 0)
+                    response += f"- `{tag}`: {count} files\n"
+                else:
+                    response += f"- `{tag}`: 0 files\n"
+            except Exception:
+                response += f"- `{tag}`: Unable to determine usage\n"
+        
+        response += f"\n## Tag Definitions List\n\n"
+        for i, tag in enumerate(tag_definitions, 1):
+            response += f"{i}. `{tag}`\n"
+        
+        return {
+            "content": [{"type": "text", "text": response}]
+        }
+    
+    async def _workflow_cleanup_tags(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute cleanup_tags workflow."""
+        # Get all tag definitions
+        tag_definitions_result = await self.aparavi_client.manage_tag_definitions("list")
+        tag_definitions = tag_definitions_result.get("tagDefinitions", [])
+        
+        if not tag_definitions:
+            return {
+                "content": [{"type": "text", "text": "# Tag Cleanup Report\n\nNo tag definitions found in the system."}]
+            }
+        
+        unused_tags = []
+        used_tags = []
+        
+        # Check usage for each tag
+        for tag in tag_definitions:
+            tag_query = f"SELECT COUNT(*) as file_count FROM STORE('/') WHERE userTags LIKE '%;{tag};%'"
+            try:
+                result = await self.aparavi_client.execute_query(tag_query, "json")
+                if isinstance(result, dict) and "data" in result and result["data"]:
+                    count = result["data"][0].get("file_count", 0)
+                    if count == 0:
+                        unused_tags.append(tag)
+                    else:
+                        used_tags.append((tag, count))
+                else:
+                    unused_tags.append(tag)
+            except Exception:
+                # If we can't determine usage, keep the tag
+                used_tags.append((tag, "unknown"))
+        
+        response = f"# Tag Cleanup Analysis\n\n"
+        response += f"**Total tag definitions:** {len(tag_definitions)}\n"
+        response += f"**Used tags:** {len(used_tags)}\n"
+        response += f"**Unused tags:** {len(unused_tags)}\n\n"
+        
+        if unused_tags:
+            response += f"## Unused Tags (Candidates for Deletion)\n\n"
+            for tag in unused_tags:
+                response += f"- `{tag}`\n"
+            
+            # Optionally delete unused tags if requested
+            if params.get("auto_delete_unused", False):
+                await self.aparavi_client.manage_tag_definitions("delete", unused_tags)
+                response += f"\n**Auto-deletion completed:** Removed {len(unused_tags)} unused tag definitions.\n"
+            else:
+                response += f"\n*To delete these unused tags, call this workflow again with auto_delete_unused=true*\n"
+        else:
+            response += f"## All Tags Are In Use\n\nNo unused tag definitions found.\n"
+        
+        if used_tags:
+            response += f"\n## Used Tags\n\n"
+            for tag, count in used_tags:
+                response += f"- `{tag}`: {count} files\n"
+        
+        return {
+            "content": [{"type": "text", "text": response}]
+        }
+
     async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Handle incoming MCP requests and route to appropriate handlers."""
         method = request.get("method")
