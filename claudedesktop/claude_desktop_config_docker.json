@@ -12,7 +12,7 @@
         "-e", "APARAVI_PASSWORD=root",
         "-e", "APARAVI_API_VERSION=v3",
         "-e", "LOG_LEVEL=INFO",
-        "aparavi-mcp-server:latest",
+        "nowakelabs/aparavi-mcp-server:latest",
         "python", "/app/scripts/start_server.py"
       ]
     }

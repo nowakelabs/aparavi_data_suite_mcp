@@ -19,6 +19,45 @@ A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop 
 
 **That's it!** The system will assess your needs and guide you to the perfect tool sequence.
 
+## 📋 Prerequisites
+
+### Aparavi Data Suite Required
+
+**⚠️ IMPORTANT:** This MCP server requires a running Aparavi Data Suite installation to function. The MCP server acts as an intelligent interface to your Aparavi Data Suite system.
+
+**🔗 Get Started with Aparavi Data Suite:**
+
+👉 **[Download Aparavi Data Suite Baseline](https://aparavi.com/download-aparavi-data-suite-baseline/)** 👈
+
+**What is Aparavi Data Suite?**
+
+Aparavi Data Suite is a comprehensive data intelligence platform that provides:
+
+- **AI-Ready Data Preparation**: Automatically curate, cleanse, and prepare enterprise data for AI and machine learning initiatives
+- **Intelligent Data Discovery & Classification**: Leverage AI to automatically discover, catalog, and classify sensitive data across hybrid and multi-cloud environments
+- **Advanced Data Governance**: Implement automated policies, controls, and workflows for data protection, privacy, and regulatory compliance
+- **Real-Time Data Analytics & Insights**: Generate actionable insights from your entire data landscape with advanced query capabilities and visual analytics
+- **Automated Compliance Reporting**: Meet global regulatory requirements (GDPR, CCPA, SOX, HIPAA) with built-in compliance frameworks and audit trails
+- **Data Lineage & Impact Analysis**: Track data movement and transformations to understand dependencies and ensure data quality
+- **Enterprise Data Cataloging**: Create a unified, searchable catalog of all organizational data assets with rich metadata
+- **Risk Assessment & Remediation**: Identify data risks, privacy violations, and security gaps with automated remediation workflows
+
+**Before Using This MCP Server:**
+
+1. ✅ **Install Aparavi Data Suite** from the link above
+2. ✅ **Configure your data sources** in Aparavi Data Suite
+3. ✅ **Verify API access** (typically available at `http://localhost`)
+4. ✅ **Note your credentials** (username/password for API authentication)
+
+**Once Aparavi Data Suite is running**, you can use this MCP server to:
+- Execute natural language queries against your data
+- Generate AQL (Aparavi Query Language) queries
+- Run predefined compliance and analytics reports
+- Manage data classification and tagging
+- Perform advanced data discovery operations
+
+---
+
 ## 🚀 Features
 
 ### Core MCP Tools
@@ -266,12 +305,31 @@ For containerized deployment, you can run the MCP server using Docker instead of
 
 #### Build Docker Image
 
+**Single Platform Build (Local Development):**
 ```bash
-# Build the Docker image
+# Build for current platform only
 .\scripts\docker-build.ps1
+```
 
-# Or manually:
-docker build -t aparavi-mcp-server:latest .
+**Multi-Platform Build (Windows & Mac Compatible):**
+```bash
+# Build for multiple platforms (linux/amd64, linux/arm64)
+.\scripts\docker-build.ps1 -MultiPlatform
+
+# Build and push to registry
+.\scripts\docker-build.ps1 -MultiPlatform -Push -Registry "your-registry.com"
+
+# Build with no cache
+.\scripts\docker-build.ps1 -MultiPlatform -NoBuildCache
+```
+
+**Manual Buildx Commands:**
+```bash
+# Single platform
+docker buildx build -t aparavi-mcp-server:latest --load .
+
+# Multi-platform
+docker buildx build --platform linux/amd64,linux/arm64 -t aparavi-mcp-server:latest --load .
 ```
 
 #### Run with Docker Compose
@@ -283,11 +341,15 @@ docker-compose up aparavi-mcp-server
 # Server will be available at http://localhost:8080
 ```
 
-#### Claude Desktop Integration with Docker
+#### Claude Desktop Integration Options
 
-For Docker-based deployment, use this Claude Desktop configuration:
+Choose the appropriate configuration based on your deployment preference:
 
-**Location:** `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+##### Option 1: Docker Deployment (Recommended)
+
+Uses the pre-built Docker image from the registry. No local setup required.
+
+**Sample Config:** `claudedesktop/claude_desktop_config_docker.json`
 
 ```json
 {
@@ -304,7 +366,7 @@ For Docker-based deployment, use this Claude Desktop configuration:
         "-e", "APARAVI_PASSWORD=root",
         "-e", "APARAVI_API_VERSION=v3",
         "-e", "LOG_LEVEL=INFO",
-        "aparavi-mcp-server:latest",
+        "nowakelabs/aparavi-mcp-server:latest",
         "python", "/app/scripts/start_server.py"
       ]
     }
@@ -312,12 +374,85 @@ For Docker-based deployment, use this Claude Desktop configuration:
 }
 ```
 
-**Key Docker Configuration Notes:**
-- Uses `host.docker.internal` to connect to Aparavi server running on host machine
-- Runs container with `--rm` flag for automatic cleanup
-- Interactive mode (`-i`) for MCP protocol communication
-- All credentials passed as environment variables
-- No need for local Python/UV installation
+##### Option 2: Local Windows Development
+
+Uses local Python virtual environment on Windows.
+
+**Sample Config:** `claudedesktop/claude_desktop_config_windows.json`
+
+```json
+{
+  "mcpServers": {
+    "aparavi-mcp-server": {
+      "command": "c:\\path\\to\\aparavi_reporting_mcp\\.venv\\Scripts\\python.exe",
+      "args": [
+        "c:\\path\\to\\aparavi_reporting_mcp\\scripts\\start_server.py"
+      ],
+      "cwd": "c:\\path\\to\\aparavi_reporting_mcp",
+      "env": {
+        "APARAVI_HOST": "localhost",
+        "APARAVI_PORT": "80",
+        "APARAVI_API_VERSION": "v3",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+##### Option 3: Local macOS Development
+
+Uses local Python virtual environment on macOS.
+
+**Sample Config:** `claudedesktop/claude_desktop_config_mac.json`
+
+```json
+{
+  "mcpServers": {
+    "aparavi-mcp-server": {
+      "command": "~/Documents/GitHub/aparavi_reporting_mcp/.venv/bin/python",
+      "args": [
+        "~/Documents/GitHub/aparavi_reporting_mcp/scripts/start_server.py"
+      ],
+      "cwd": "~/Documents/GitHub/aparavi_reporting_mcp",
+      "env": {
+        "APARAVI_HOST": "localhost",
+        "APARAVI_PORT": "80",
+        "APARAVI_API_VERSION": "v3",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+##### Configuration Setup Instructions
+
+1. **Choose your deployment method** from the three options above
+2. **Copy the appropriate sample config** from the `claudedesktop/` directory
+3. **Update the configuration** with your specific paths and credentials
+4. **Place the config file** in the correct Claude Desktop location:
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Linux**: `~/.config/Claude/claude_desktop_config.json`
+5. **Restart Claude Desktop** to load the new configuration
+
+##### Configuration Notes by Deployment Type
+
+**Docker Deployment:**
+- ✅ Uses `host.docker.internal` to connect to Aparavi server on host machine
+- ✅ Runs container with `--rm` flag for automatic cleanup
+- ✅ Interactive mode (`-i`) for MCP protocol communication
+- ✅ All credentials passed as environment variables
+- ✅ No need for local Python/UV installation
+- ✅ Uses pre-built `nowakelabs/aparavi-mcp-server:latest` image
+
+**Local Development (Windows/Mac):**
+- ⚠️ Requires local Python environment setup with UV
+- ⚠️ Must update file paths to match your local installation
+- ⚠️ Uses `localhost` to connect to local Aparavi server
+- ✅ Direct access to code for debugging and development
+- ✅ Faster iteration for code changes
 
 #### Docker vs Local Deployment
 
