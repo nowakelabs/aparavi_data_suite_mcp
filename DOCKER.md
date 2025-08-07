@@ -193,11 +193,13 @@ docker run --rm -i \
 ### Windows
 - Use the provided `claude_desktop_config_windows.json` for local development
 - Docker Desktop must be running for Docker deployment
+- Clone from: `git clone https://github.com/nowakelabs/aparavi_data_suite_mcp.git`
 - Use `%USERPROFILE%\Documents\GitHub\aparavi_data_suite_mcp` paths
 
 ### macOS
 - Use the provided `claude_desktop_config_mac.json` for local development
 - Docker Desktop must be running for Docker deployment
+- Clone from: `git clone https://github.com/nowakelabs/aparavi_data_suite_mcp.git`
 - Use `~/Documents/GitHub/aparavi_data_suite_mcp` paths
 
 ### Linux
@@ -210,6 +212,6 @@ For issues and support:
 - Check the main README.md for comprehensive setup instructions
 - Ensure Aparavi Data Suite is properly installed and configured
 - Verify all environment variables are correctly set
-- Contact: support@aparavi.com
+- Contact: ask@nowakelabs.com
 
 The Docker implementation maintains full compatibility with the local gold standard while providing additional deployment flexibility.

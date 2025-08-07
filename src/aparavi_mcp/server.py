@@ -1729,7 +1729,7 @@ class AparaviMCPServer:
                 "isError": True,
                 "content": [{
                     "type": "text",
-                    "text": f"# Guide Start Here Failed\n\nError: {str(e)}\n\nPlease try again or contact support@aparavi.com"
+                    "text": f"# Guide Start Here Failed\n\nError: {str(e)}\n\nPlease try again or contact ask@nowakelabs.com"
                 }]
             }
     

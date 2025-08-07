@@ -1,353 +1,145 @@
 # Aparavi Data Suite MCP Server
 
-A comprehensive Model Context Protocol (MCP) server that enables Claude Desktop and other MCP clients to interact with Aparavi Data Suite systems through natural language. The server provides a unified interface for executing AQL (Aparavi Data Suite Query Language) queries, running predefined reports, and validating custom queries.
+**Talk to your enterprise data using natural language with Claude Desktop.**
 
-## ⚡ Quick Start
+This MCP server connects Claude Desktop to your Aparavi Data Suite, enabling you to:
+- 💬 Ask questions about your data in plain English
+- 📊 Run compliance and analytics reports
+- 🔍 Find files, duplicates, and sensitive data
+- 🏷️ Manage data classification and tagging
 
-**🌟 New to the Aparavi Data Suite MCP Server?**
+## 🚀 Quick Start
 
-1. **First Time Users**: Simply call `guide_start_here` with no parameters for personalized guidance
-2. **Experienced Users**: Use `guide_start_here` with your specific goals for optimized workflows
-3. **Need Help?**: The intelligent entry point adapts to your experience level automatically
+**Ready to get started?** Follow these 3 simple steps:
 
-```json
-{
-  "name": "guide_start_here",
-  "arguments": {}
-}
-```
+1. **Install Aparavi Data Suite** (see Prerequisites below)
+2. **Choose your deployment method** (Docker recommended)
+3. **Configure Claude Desktop** (copy provided config file)
 
-**That's it!** The system will assess your needs and guide you to the perfect tool sequence.
+**That's it!** Start asking Claude questions about your data.
 
 ## 📋 Prerequisites
 
-### Aparavi Data Suite Required
+### Step 1: Install Aparavi Data Suite
 
-**⚠️ IMPORTANT:** This MCP server requires a running Aparavi Data Suite installation to function. The MCP server acts as an intelligent interface to your Aparavi Data Suite system.
-
-**🔗 Get Started with Aparavi Data Suite:**
+**⚠️ Required:** You need Aparavi Data Suite running before using this MCP server.
 
 👉 **[Download Aparavi Data Suite Baseline](https://aparavi.com/download-aparavi-data-suite-baseline/)** 👈
 
 **What is Aparavi Data Suite?**
+A comprehensive data intelligence platform for enterprise data discovery, classification, governance, and compliance reporting.
 
-Aparavi Data Suite is a comprehensive data intelligence platform that provides:
-
-- **AI-Ready Data Preparation**: Automatically curate, cleanse, and prepare enterprise data for AI and machine learning initiatives
-- **Intelligent Data Discovery & Classification**: Leverage AI to automatically discover, catalog, and classify sensitive data across hybrid and multi-cloud environments
-- **Advanced Data Governance**: Implement automated policies, controls, and workflows for data protection, privacy, and regulatory compliance
-- **Real-Time Data Analytics & Insights**: Generate actionable insights from your entire data landscape with advanced query capabilities and visual analytics
-- **Automated Compliance Reporting**: Meet global regulatory requirements (GDPR, CCPA, SOX, HIPAA) with built-in compliance frameworks and audit trails
-- **Data Lineage & Impact Analysis**: Track data movement and transformations to understand dependencies and ensure data quality
-- **Enterprise Data Cataloging**: Create a unified, searchable catalog of all organizational data assets with rich metadata
-- **Risk Assessment & Remediation**: Identify data risks, privacy violations, and security gaps with automated remediation workflows
-
-**Before Using This MCP Server:**
-
-1. ✅ **Install Aparavi Data Suite** from the link above
-2. ✅ **Configure your data sources** in Aparavi Data Suite
-3. ✅ **Verify API access** (typically available at `http://localhost`)
-4. ✅ **Note your credentials** (username/password for API authentication)
-
-**Once Aparavi Data Suite is running**, you can use this MCP server to:
-- Execute natural language queries against your data
-- Generate AQL (Aparavi Query Language) queries
-- Run predefined compliance and analytics reports
-- Manage data classification and tagging
-- Perform advanced data discovery operations
+**Setup Checklist:**
+1. ✅ Install Aparavi Data Suite from the link above
+2. ✅ Configure your data sources
+3. ✅ Verify it's running at `http://localhost:80`
+4. ✅ Note your login credentials (default: root/root)
 
 ---
 
-## 🚀 Features
+## 🚀 What You Can Do
 
-### Core MCP Tools
-- **`guide_start_here`**: **🌟 START HERE** - Intelligent entry point and routing assistant that assesses your experience, goals, and preferences to provide personalized guidance on which tools to use and in what sequence
-- **`health_check`**: Comprehensive server health monitoring with API connectivity and AQL validation
-- **`server_info`**: Detailed server configuration and capability information
-- **`run_aparavi_report`**: Execute 20 predefined Aparavi Data Suite reports and 5 analysis workflows
-- **`validate_aql_query`**: Validate custom AQL queries without execution
-- **`execute_custom_aql_query`**: Validate and execute custom AQL queries with raw JSON output
-- **`generate_aql_query`**: Intelligent AQL query builder for custom analysis not covered by predefined reports
-- **`manage_tag_definitions`**: Create, list, or delete tag definitions in the global tag registry
-- **`apply_file_tags`**: Apply or remove tags from files using bulk operations with direct file specification or AQL query-based selection
-- **`search_files_by_tags`**: Search files using tag-based criteria with advanced filtering options and include/exclude logic
-- **`tag_workflow_operations`**: Execute high-level tagging workflows for common use cases like bulk tagging, retagging, and cleanup
+**Ask Claude questions like:**
+- "Show me all duplicate files in our system"
+- "Find sensitive data that needs classification"
+- "What's our storage usage by department?"
+- "Tag all Excel files from Q4 2024 as 'financial'"
 
-### 🎯 Tool Selection Guide
+**Available Tools:**
+- 📊 **20+ Pre-built Reports** - Compliance, storage, duplicates, and more
+- 🔍 **Custom Queries** - Ask anything about your data in natural language
+- 🏷️ **File Tagging** - Organize and classify your data
+- ✅ **Health Monitoring** - Check system status and connectivity
 
-**🌟 NEW USERS OR UNSURE WHERE TO START?**
+**New to this?** Just ask Claude "Help me get started with Aparavi" and it will guide you!
 
-**Use `guide_start_here` first!** This intelligent assistant will assess your needs and recommend the perfect tool sequence.
+## 🛠️ Step 2: Choose Your Deployment Method
 
-**When to Use Each Tool:**
+### Option A: Docker (Recommended) 🐳
 
-1. **`guide_start_here`** - **START HERE** for personalized guidance and tool recommendations
-   - Perfect for: New users, complex analysis planning, when unsure which tool to use
-   - Adapts to your experience level and analysis goals
-   - Provides step-by-step workflows tailored to your needs
+**Easiest setup - works on Windows, Mac, and Linux:**
 
-2. **`run_aparavi_report`** - Use for standard business questions covered by the 20 predefined reports
-   - Example: "Show me duplicate files" or "Analyze storage by data source"
-   - Use `report_name="list"` to see all available reports
+1. **Install Docker Desktop**
+2. **Copy the config file:**
+   ```bash
+   # Download this repo
+   git clone https://github.com/nowakelabs/aparavi_data_suite_mcp.git
+   
+   # Copy Docker config to Claude Desktop
+   cp claudedesktop/claude_desktop_config_docker.json ~/.config/Claude/claude_desktop_config.json
+   ```
+3. **Restart Claude Desktop** - That's it!
 
-3. **`generate_aql_query`** - Use for custom analysis NOT covered by predefined reports
-   - Example: "Find Excel files with macros created in Q3 2024 by department"
-   - Prevents syntax errors and generates valid AQL from natural language
-   - **Always use this first** for custom queries before validation/execution
+### Option B: Local Development 💻
 
-4. **`validate_aql_query`** - Use to check AQL syntax before execution
-   - Validates queries generated by `generate_aql_query` or written manually
-   - Returns detailed syntax error information if invalid
+**For developers who want to modify the code:**
 
-5. **`execute_custom_aql_query`** - Use to run validated custom AQL queries
-   - Combines validation + execution in one step
-   - Returns raw JSON results for analysis
+1. **Install Python 3.11+** and **UV package manager**
+2. **Clone and setup:**
+   ```bash
+   git clone https://github.com/nowakelabs/aparavi_data_suite_mcp.git
+   cd aparavi_data_suite_mcp
+   uv sync
+   ```
+3. **Copy the appropriate config:**
+   - **Windows:** `claudedesktop/claude_desktop_config_windows.json`
+   - **Mac:** `claudedesktop/claude_desktop_config_mac.json`
+## 🎯 Step 3: Configure Claude Desktop
 
-6. **`health_check`** - Use to verify system status and API connectivity
-7. **`server_info`** - Use to view server configuration and capabilities
+**Copy the right config file for your setup:**
 
-8. **`manage_tag_definitions`** - Use to manage the global tag registry
-   - Create new tags for classification and organization
-   - List all available tags to see what's already defined
-   - Delete unused tags to keep the registry clean
+- **Docker:** Copy `claudedesktop/claude_desktop_config_docker.json`
+- **Windows Local:** Copy `claudedesktop/claude_desktop_config_windows.json`
+- **Mac Local:** Copy `claudedesktop/claude_desktop_config_mac.json`
 
-9. **`apply_file_tags`** - Use to tag files in bulk operations
-   - Tag files directly by specifying file objects (objectId + instanceId)
-   - Tag files found by AQL queries for efficient bulk operations
-   - Remove tags from files when reorganizing or cleaning up
+**To your Claude Desktop config location:**
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+- **Mac:** `~/.config/Claude/claude_desktop_config.json`
 
-10. **`search_files_by_tags`** - Use to find files based on their tags
-    - Search files that have specific tags (include logic)
-    - Exclude files with certain tags (exclude logic)
-    - Combine tag searches with additional AQL filters
-    - Use AND/OR logic for complex tag-based queries
+**Restart Claude Desktop** and you're ready to go!
 
-11. **`tag_workflow_operations`** - Use for complex tagging workflows
-    - Execute common tagging patterns like "find and tag"
-    - Perform bulk retagging operations
-    - Generate tag reports and analytics
-    - Clean up and reorganize tag structures
+---
 
-**Recommended Workflows:**
-```
-🆕 New User: guide_start_here → [recommended tool sequence]
-📊 Standard Analysis: run_aparavi_report
-🔧 Custom Analysis: generate_aql_query → validate_aql_query → execute_custom_aql_query
-🏷️ File Tagging: manage_tag_definitions → apply_file_tags → search_files_by_tags
-📋 Tag Management: manage_tag_definitions → tag_workflow_operations
-🔍 Tag-based Search: search_files_by_tags → [analysis or further tagging]
-🚨 Troubleshooting: health_check → [diagnostic steps]
-```
+## 💬 Using the MCP Server
 
-### 🌟 Guide Start Here - Usage Examples
+**Once everything is set up, just talk to Claude naturally:**
 
-The `guide_start_here` tool is your intelligent entry point that adapts to your needs:
+- "Show me duplicate files in our system"
+- "What's our storage usage by department?"
+- "Find all Excel files created last month"
+- "Help me tag sensitive documents"
+- "Run a compliance report"
 
-**🆕 Complete Beginner (No Parameters Needed):**
-```json
-{
-  "name": "guide_start_here",
-  "arguments": {}
-}
-```
-*Result: Gentle introduction with safe defaults and immediate actionable steps*
+**Need help getting started?** Ask Claude: *"Help me get started with Aparavi"*
 
-**📊 Specific Analysis Goal:**
-```json
-{
-  "name": "guide_start_here",
-  "arguments": {
-    "user_experience": "new",
-    "query_goal": "duplicates",
-    "context_window": "small"
-  }
-}
-```
-*Result: Focused guidance to duplicate analysis reports with minimal complexity*
+---
 
-**🔧 Custom Analysis Planning:**
-```json
-{
-  "name": "guide_start_here",
-  "arguments": {
-    "user_experience": "intermediate",
-    "query_goal": "custom",
-    "specific_question": "Find Excel files with macros created by specific users in Q3 2024",
-    "context_window": "large"
-  }
-}
-```
-*Result: Comprehensive workflow from query generation through execution with detailed explanations*
+## 🔧 Troubleshooting
 
-**🚨 Troubleshooting Assistance:**
-```json
-{
-  "name": "guide_start_here",
-  "arguments": {
-    "query_goal": "troubleshooting",
-    "specific_question": "My AQL queries keep failing with syntax errors"
-  }
-}
-```
-*Result: Diagnostic workflow starting with health_check and validation guidance*
+**Common Issues:**
 
-**⚡ Advanced User Quick Reference:**
-```json
-{
-  "name": "guide_start_here",
-  "arguments": {
-    "user_experience": "advanced",
-    "preferred_approach": "custom_queries",
-    "context_window": "small"
-  }
-}
-```
-*Result: Direct routing to validation and execution tools with minimal explanation*
+1. **"Can't connect to Aparavi"**
+   - Make sure Aparavi Data Suite is running at `http://localhost:80`
+   - Check your username/password (default: root/root)
 
-### Advanced Capabilities
-- **🧠 Intelligent Entry Point**: `guide_start_here` provides personalized guidance based on user experience and goals
-- **🎯 Adaptive Workflows**: Context-aware responses that scale from focused steps to comprehensive guidance
-- **📊 20 Predefined Reports**: Comprehensive data analysis covering storage, duplicates, classifications, and more
-- **🔗 5 Analysis Workflows**: Pre-configured multi-report analysis for common business scenarios
-- **🤖 Intelligent AQL Generation**: Natural language to AQL conversion with syntax validation
-- **✅ Comprehensive Field Reference**: Built-in validation against available Aparavi fields
-- **🛡️ Error Prevention**: Avoids common AQL pitfalls (DISTINCT, DATEADD, invalid fields)
-- **📋 Raw JSON Output**: Direct API results for further processing and visualization
-- **🔍 Health Monitoring**: Continuous validation of all configured queries
-- **🎨 Professional Integration**: Seamless Claude Desktop MCP integration
-- **📱 Multi-Model Support**: Optimized for both small and large language models
-- **🎛️ Experience-Adaptive**: Automatically adjusts complexity based on user skill level with environment-based credentials
-- **Robust Error Handling**: Comprehensive error reporting and recovery mechanisms
-- **Modern Architecture**: Python 3.11+ with async/await and UV package management
+2. **"MCP server won't start"**
+   - For Docker: Make sure Docker Desktop is running
+   - For Local: Make sure Python 3.11+ and UV are installed
 
-## 📋 Prerequisites
+3. **"Claude doesn't see the server"**
+   - Check that you copied the config file to the right location
+   - Restart Claude Desktop after copying the config
 
-- **Python 3.11+**: Required for modern async features
-- **UV Package Manager**: Fast dependency management
-- **Aparavi Data Suite System**: Access to Aparavi Data Suite API
-- **Claude Desktop**: For MCP integration (or any MCP-compatible client)
+**Still having issues?** Contact: ask@nowakelabs.com
 
-## 🛠️ Installation
+---
 
-### 1. Install UV Package Manager
+## 📚 Advanced Documentation
 
-**Windows (PowerShell):**
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-**macOS/Linux:**
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-### 2. Clone and Setup Project
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd aparavi_reporting_mcp
-
-# Create virtual environment and install dependencies
-uv venv
-uv pip install -e .
-
-# Install development dependencies (optional)
-uv pip install -e ".[dev]"
-```
-
-### 3. Environment Configuration
-
-Copy the environment template and configure your Aparavi Data Suite connection:
-
-```bash
-cp .env.template .env
-```
-
-Edit `.env` with your Aparavi Data Suite credentials:
-
-```env
-# Aparavi Data Suite API Configuration
-APARAVI_BASE_URL=http://localhost
-APARAVI_PORT=80
-APARAVI_USERNAME=your_username
-APARAVI_PASSWORD=your_password
-
-# Server Configuration
-SERVER_NAME=Aparavi Data Suite MCP Server
-SERVER_VERSION=1.0.0
-LOG_LEVEL=INFO
-```
-
-### 4. Claude Desktop Integration
-
-Add the MCP server to your Claude Desktop configuration:
-
-**Location:** `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
-
-```json
-{
-  "mcpServers": {
-    "aparavi-reporting": {
-      "command": "python",
-      "args": [
-        "C:\\path\\to\\aparavi_reporting_mcp\\scripts\\start_server_claude.py"
-      ],
-      "cwd": "C:\\path\\to\\aparavi_reporting_mcp"
-    }
-  }
-}
-```
-
-### 5. Docker Deployment (Alternative)
-
-For containerized deployment, you can run the MCP server using Docker instead of local Python installation.
-
-#### Build Docker Image
-
-**Single Platform Build (Local Development):**
-```bash
-# Build for current platform only
-.\scripts\docker-build.ps1
-```
-
-**Multi-Platform Build (Windows & Mac Compatible):**
-```bash
-# Build for multiple platforms (linux/amd64, linux/arm64)
-.\scripts\docker-build.ps1 -MultiPlatform
-
-# Build and push to registry
-.\scripts\docker-build.ps1 -MultiPlatform -Push -Registry "your-registry.com"
-
-# Build with no cache
-.\scripts\docker-build.ps1 -MultiPlatform -NoBuildCache
-```
-
-**Manual Buildx Commands:**
-```bash
-# Single platform
-docker buildx build -t aparavi-mcp-server:latest --load .
-
-# Multi-platform
-docker buildx build --platform linux/amd64,linux/arm64 -t aparavi-mcp-server:latest --load .
-```
-
-#### Run with Docker Compose
-
-```bash
-# Start the MCP server in HTTP mode
-docker-compose up aparavi-mcp-server
-
-# Server will be available at http://localhost:8080
-```
-
-#### Claude Desktop Integration Options
-
-Choose the appropriate configuration based on your deployment preference:
-
-##### Option 1: Docker Deployment (Recommended)
-
-Uses the pre-built Docker image from the registry. No local setup required.
+For detailed technical information:
+- **Docker Deployment:** See `DOCKER.md`
+- **API Reference:** Check the source code documentation
+- **Custom Development:** Review the development setup in the repository
 
 **Sample Config:** `claudedesktop/claude_desktop_config_docker.json`
 

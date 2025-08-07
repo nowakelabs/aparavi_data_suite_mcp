@@ -7,7 +7,7 @@ name = "aparavi-mcp-server"
 version = "0.1.0"
 description = "MCP server for APARAVI DATA SUITE"
 authors = [
-    {name = "Aparavi Team", email = "support@aparavi.com"}
+    {name = "Nowake Labs", email = "ask@nowakelabs.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"

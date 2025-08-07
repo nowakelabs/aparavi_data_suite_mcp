@@ -2,7 +2,7 @@
 # PowerShell script with Buildx multi-platform support
 
 param(
-    [string]$Tag = "aparavi-mcp-server:latest",
+    [string]$Tag = "nowakelabs/aparavi-mcp-server:latest",
     [switch]$NoBuildCache = $false,
     [switch]$MultiPlatform = $false,
     [switch]$Push = $false,
