@@ -156,7 +156,7 @@ For detailed technical information:
         "-e", "APARAVI_PORT=80",
         "-e", "APARAVI_USERNAME=root",
         "-e", "APARAVI_PASSWORD=root",
-        "-e", "APARAVI_API_VERSION=v3",
+        "-e", "APARAVI_CLIENT_OBJECT_ID=43225572-pltf-4336-af95-2aed2eb00810",
         "-e", "LOG_LEVEL=INFO",
         "nowakelabs/aparavi-mcp-server:latest",
         "python", "/app/scripts/start_server.py"
@@ -176,15 +176,17 @@ Uses local Python virtual environment on Windows.
 {
   "mcpServers": {
     "aparavi-mcp-server": {
-      "command": "c:\\path\\to\\aparavi_reporting_mcp\\.venv\\Scripts\\python.exe",
+      "command": "%USERPROFILE%\\Documents\\GitHub\\aparavi_data_suite_mcp\\.venv\\Scripts\\python.exe",
       "args": [
-        "c:\\path\\to\\aparavi_reporting_mcp\\scripts\\start_server.py"
+        "%USERPROFILE%\\Documents\\GitHub\\aparavi_data_suite_mcp\\scripts\\start_server.py"
       ],
-      "cwd": "c:\\path\\to\\aparavi_reporting_mcp",
+      "cwd": "%USERPROFILE%\\Documents\\GitHub\\aparavi_data_suite_mcp",
       "env": {
         "APARAVI_HOST": "localhost",
         "APARAVI_PORT": "80",
-        "APARAVI_API_VERSION": "v3",
+        "APARAVI_USERNAME": "root",
+        "APARAVI_PASSWORD": "root",
+        "APARAVI_CLIENT_OBJECT_ID": "43225572-pltf-4336-af95-2aed2eb00810",
         "LOG_LEVEL": "INFO"
       }
     }
@@ -202,15 +204,17 @@ Uses local Python virtual environment on macOS.
 {
   "mcpServers": {
     "aparavi-mcp-server": {
-      "command": "~/Documents/GitHub/aparavi_reporting_mcp/.venv/bin/python",
+      "command": "~/Documents/GitHub/aparavi_data_suite_mcp/.venv/bin/python",
       "args": [
-        "~/Documents/GitHub/aparavi_reporting_mcp/scripts/start_server.py"
+        "~/Documents/GitHub/aparavi_data_suite_mcp/scripts/start_server.py"
       ],
-      "cwd": "~/Documents/GitHub/aparavi_reporting_mcp",
+      "cwd": "~/Documents/GitHub/aparavi_data_suite_mcp",
       "env": {
         "APARAVI_HOST": "localhost",
         "APARAVI_PORT": "80",
-        "APARAVI_API_VERSION": "v3",
+        "APARAVI_USERNAME": "root",
+        "APARAVI_PASSWORD": "root",
+        "APARAVI_CLIENT_OBJECT_ID": "43225572-pltf-4336-af95-2aed2eb00810",
         "LOG_LEVEL": "INFO"
       }
     }
