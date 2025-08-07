@@ -407,39 +407,65 @@ python scripts/start_server.py
 ### Project Structure
 
 ```bash
-aparavi_reporting_mcp/
+aparavi_data_suite_mcp/
 ├── src/aparavi_mcp/           # Main source code
 │   ├── server.py              # MCP server implementation
 │   ├── aparavi_client.py      # Aparavi Data Suite API client
 │   ├── config.py              # Configuration management
-│   └── utils.py               # Utility functions
+│   ├── utils.py               # Utility functions
+│   ├── docker_server.py       # Docker HTTP server
+│   └── tools/                 # Tool implementations
+├── claudedesktop/             # Claude Desktop config files
+│   ├── claude_desktop_config_docker.json
+│   ├── claude_desktop_config_windows.json
+│   └── claude_desktop_config_mac.json
 ├── config/                    # Configuration files
 │   └── aparavi_reports.json   # Report and workflow definitions
 ├── scripts/                   # Utility scripts
-│   ├── start_server.py        # Standalone server starter
-│   ├── start_server_claude.py # Claude Desktop wrapper
-│   ├── test_mcp_manual.py     # Manual MCP testing
-│   ├── test_aql_validation.py # AQL validation testing
-│   └── test_execute_custom_aql.py # Custom query testing
+│   ├── start_server.py        # Server starter
+│   ├── docker-build.ps1       # Docker build script
+│   └── run_analytics.py       # Analytics runner
 ├── references/                # Documentation
-│   └── aparavi_aql_reports.md # Comprehensive AQL reference
-└── tests/                     # Test suite
+│   └── aql_ref.json           # AQL reference and templates
+├── tests/                     # Test suite
+│   └── test_mcp_tools.py      # MCP tools testing
+├── Dockerfile                 # Docker configuration
+├── docker-compose.yml         # Docker Compose setup
+└── pyproject.toml             # Python project configuration
 ```
 
 ### Running Tests
 
 ```bash
-# Manual MCP server testing
-python scripts/test_mcp_manual.py
+# Run the main test suite
+python -m pytest tests/test_mcp_tools.py -v
 
-# Test AQL validation functionality
-python scripts/test_aql_validation.py
+# Or run with UV
+uv run python -m pytest tests/test_mcp_tools.py -v
 
-# Test custom query execution
-python scripts/test_execute_custom_aql.py
+# Run specific test functions
+python -m pytest tests/test_mcp_tools.py::test_health_check -v
 
-# Simple validation test
-python scripts/simple_mcp_test.py
+# For development testing, start the server manually
+python scripts/start_server.py
+```
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/nowakelabs/aparavi_data_suite_mcp.git
+cd aparavi_data_suite_mcp
+
+# Install dependencies with UV
+uv sync
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your Aparavi Data Suite credentials
+
+# Run tests to verify setup
+uv run python -m pytest tests/ -v
 ```
 
 ## 🔧 Troubleshooting
