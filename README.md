@@ -424,7 +424,6 @@ aparavi_data_suite_mcp/
 ├── scripts/                   # Utility scripts
 │   ├── start_server.py        # Server starter
 │   ├── docker-build.ps1       # Docker build script
-│   └── run_analytics.py       # Analytics runner
 ├── references/                # Documentation
 │   └── aql_ref.json           # AQL reference and templates
 ├── tests/                     # Test suite
