@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # Main Aparavi MCP Server - Local Mode (stdio)
+  aparavi-mcp-local:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aparavi-mcp-local
+    environment:
+      # Aparavi API Configuration
+      - APARAVI_HOST=${APARAVI_HOST:-localhost}
+      - APARAVI_PORT=${APARAVI_PORT:-80}
+      - APARAVI_USERNAME=${APARAVI_USERNAME:-root}
+      - APARAVI_PASSWORD=${APARAVI_PASSWORD:-root}
+      - APARAVI_API_VERSION=${APARAVI_API_VERSION:-v3}
+      - APARAVI_TIMEOUT=${APARAVI_TIMEOUT:-30}
+      - APARAVI_MAX_RETRIES=${APARAVI_MAX_RETRIES:-3}
+      - APARAVI_CLIENT_OBJECT_ID=${APARAVI_CLIENT_OBJECT_ID}
+      
+      # MCP Server Configuration
+      - MCP_SERVER_NAME=${MCP_SERVER_NAME:-aparavi-mcp-server}
+      - MCP_SERVER_VERSION=${MCP_SERVER_VERSION:-0.1.0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - CACHE_TTL=${CACHE_TTL:-300}
+      
+      # Docker-specific settings
+      - MCP_SERVER_MODE=local
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    networks:
+      - aparavi-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command: ["python", "-m", "aparavi_mcp.server"]
+
+  # HTTP Mode MCP Server (for remote access)
+  aparavi-mcp-http:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aparavi-mcp-http
+    ports:
+      - "${MCP_HTTP_PORT:-8080}:8080"
+    environment:
+      # Aparavi API Configuration
+      - APARAVI_HOST=${APARAVI_HOST:-localhost}
+      - APARAVI_PORT=${APARAVI_PORT:-80}
+      - APARAVI_USERNAME=${APARAVI_USERNAME:-root}
+      - APARAVI_PASSWORD=${APARAVI_PASSWORD:-root}
+      - APARAVI_API_VERSION=${APARAVI_API_VERSION:-v3}
+      - APARAVI_TIMEOUT=${APARAVI_TIMEOUT:-30}
+      - APARAVI_MAX_RETRIES=${APARAVI_MAX_RETRIES:-3}
+      - APARAVI_CLIENT_OBJECT_ID=${APARAVI_CLIENT_OBJECT_ID}
+      
+      # MCP Server Configuration
+      - MCP_SERVER_NAME=${MCP_SERVER_NAME:-aparavi-mcp-server}
+      - MCP_SERVER_VERSION=${MCP_SERVER_VERSION:-0.1.0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - CACHE_TTL=${CACHE_TTL:-300}
+      
+      # Docker-specific settings
+      - MCP_SERVER_MODE=http
+      - MCP_HTTP_HOST=0.0.0.0
+      - MCP_HTTP_PORT=8080
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    networks:
+      - aparavi-network
+    restart: unless-stopped
+    command: ["python", "-m", "aparavi_mcp.docker_server"]
+    profiles:
+      - http
+
+  # Development mode with volume mounts for live editing
+  aparavi-mcp-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: aparavi-mcp-dev
+    environment:
+      # Aparavi API Configuration
+      - APARAVI_HOST=${APARAVI_HOST:-localhost}
+      - APARAVI_PORT=${APARAVI_PORT:-80}
+      - APARAVI_USERNAME=${APARAVI_USERNAME:-root}
+      - APARAVI_PASSWORD=${APARAVI_PASSWORD:-root}
+      - APARAVI_API_VERSION=${APARAVI_API_VERSION:-v3}
+      - APARAVI_TIMEOUT=${APARAVI_TIMEOUT:-30}
+      - APARAVI_MAX_RETRIES=${APARAVI_MAX_RETRIES:-3}
+      - APARAVI_CLIENT_OBJECT_ID=${APARAVI_CLIENT_OBJECT_ID}
+      
+      # MCP Server Configuration
+      - MCP_SERVER_NAME=${MCP_SERVER_NAME:-aparavi-mcp-server-dev}
+      - MCP_SERVER_VERSION=${MCP_SERVER_VERSION:-0.1.0-dev}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - CACHE_ENABLED=${CACHE_ENABLED:-false}
+      - CACHE_TTL=${CACHE_TTL:-60}
+      
+      # Development settings
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./references:/app/references
+      - ./scripts:/app/scripts
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    networks:
+      - aparavi-network
+    restart: "no"
+    stdin_open: true
+    tty: true
+    command: ["python", "-m", "aparavi_mcp.server"]
+    profiles:
+      - dev
+
+networks:
+  aparavi-network:
+    driver: bridge
+    name: aparavi-mcp-network
+
+volumes:
+  aparavi-logs:
+    driver: local
+  aparavi-data:
+    driver: local
