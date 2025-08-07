@@ -1,13 +1,12 @@
-# Docker build script for Aparavi MCP Server
+# Docker build script for Aparavi MCP Server (HTTP Mode Only)
 # PowerShell script for Windows environments
 
 param(
     [string]$Tag = "aparavi-mcp-server:latest",
-    [switch]$NoBuildCache = $false,
-    [switch]$Development = $false
+    [switch]$NoBuildCache = $false
 )
 
-Write-Host "Building Aparavi MCP Server Docker image..." -ForegroundColor Green
+Write-Host "Building Aparavi MCP Server Docker image (HTTP Mode)..." -ForegroundColor Green
 
 # Set build context to project root
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
@@ -16,11 +15,6 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $BuildArgs = @()
 if ($NoBuildCache) {
     $BuildArgs += "--no-cache"
-}
-
-if ($Development) {
-    $BuildArgs += "--target", "builder"
-    $Tag = "aparavi-mcp-server:dev"
 }
 
 # Build the Docker image
@@ -45,9 +39,8 @@ try {
         docker images $Tag --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
         
         Write-Host "`nTo run the container:" -ForegroundColor Yellow
-        Write-Host "docker-compose up aparavi-mcp-local" -ForegroundColor White
-        Write-Host "# or for HTTP mode:" -ForegroundColor Gray
-        Write-Host "docker-compose --profile http up aparavi-mcp-http" -ForegroundColor White
+        Write-Host "docker-compose up aparavi-mcp-server" -ForegroundColor White
+        Write-Host "# Server will be available at http://localhost:8080" -ForegroundColor Gray
         
     } else {
         Write-Host "Docker build failed with exit code: $LASTEXITCODE" -ForegroundColor Red

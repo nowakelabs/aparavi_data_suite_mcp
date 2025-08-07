@@ -260,6 +260,88 @@ Add the MCP server to your Claude Desktop configuration:
 }
 ```
 
+### 5. Docker Deployment (Alternative)
+
+For containerized deployment, you can run the MCP server using Docker instead of local Python installation.
+
+#### Build Docker Image
+
+```bash
+# Build the Docker image
+.\scripts\docker-build.ps1
+
+# Or manually:
+docker build -t aparavi-mcp-server:latest .
+```
+
+#### Run with Docker Compose
+
+```bash
+# Start the MCP server in HTTP mode
+docker-compose up aparavi-mcp-server
+
+# Server will be available at http://localhost:8080
+```
+
+#### Claude Desktop Integration with Docker
+
+For Docker-based deployment, use this Claude Desktop configuration:
+
+**Location:** `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+
+```json
+{
+  "mcpServers": {
+    "aparavi-mcp-server": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e", "APARAVI_HOST=host.docker.internal",
+        "-e", "APARAVI_PORT=80",
+        "-e", "APARAVI_USERNAME=root",
+        "-e", "APARAVI_PASSWORD=root",
+        "-e", "APARAVI_API_VERSION=v3",
+        "-e", "LOG_LEVEL=INFO",
+        "aparavi-mcp-server:latest",
+        "python", "/app/scripts/start_server.py"
+      ]
+    }
+  }
+}
+```
+
+**Key Docker Configuration Notes:**
+- Uses `host.docker.internal` to connect to Aparavi server running on host machine
+- Runs container with `--rm` flag for automatic cleanup
+- Interactive mode (`-i`) for MCP protocol communication
+- All credentials passed as environment variables
+- No need for local Python/UV installation
+
+#### Docker vs Local Deployment
+
+| Feature | Local (UV/Python) | Docker |
+|---------|-------------------|--------|
+| **Setup Complexity** | Medium (requires UV, Python, venv) | Low (just Docker) |
+| **Isolation** | Uses local Python environment | Fully containerized |
+| **Networking** | Direct localhost connection | Uses Docker networking |
+| **Updates** | `uv sync` to update deps | Rebuild Docker image |
+| **Debugging** | Direct access to logs/code | Container logs via Docker |
+| **Portability** | Requires Python setup | Runs anywhere with Docker |
+
+**Choose Docker if:**
+- You prefer containerized deployments
+- Want to avoid local Python environment setup
+- Need consistent deployment across environments
+- Already using Docker for other services
+
+**Choose Local if:**
+- You want direct access to code for debugging
+- Prefer faster iteration during development
+- Don't want Docker overhead
+- Need to modify code frequently
+
 ## 📖 Usage
 
 ### Starting the Server
