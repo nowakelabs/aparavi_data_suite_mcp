@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "aparavi-mcp-server": {
+      "command": "~/Documents/GitHub/aparavi_data_suite_mcp/.venv/bin/python",
+      "args": [
+        "~/Documents/GitHub/aparavi_data_suite_mcp/scripts/start_server.py"
+      ],
+      "cwd": "~/Documents/GitHub/aparavi_data_suite_mcp",
+      "env": {
+        "APARAVI_HOST": "localhost",
+        "APARAVI_PORT": "80",
+        "APARAVI_USERNAME": "root",
+        "APARAVI_PASSWORD": "root",
+        "APARAVI_CLIENT_OBJECT_ID": "43225572-pltf-4336-af95-2aed2eb00810",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

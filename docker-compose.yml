@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Aparavi MCP Server - HTTP Mode Only
+  aparavi-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aparavi-mcp-server
+    ports:
+      - "8080:8080"
+    environment:
+      # Aparavi API Configuration
+      - APARAVI_HOST=host.docker.internal
+      - APARAVI_PORT=80
+      - APARAVI_USERNAME=root
+      - APARAVI_PASSWORD=root
+      - APARAVI_API_VERSION=v3
+      - APARAVI_TIMEOUT=30
+      - APARAVI_MAX_RETRIES=3
+      - APARAVI_CLIENT_OBJECT_ID=f7388d0e-apag-4e86-86f0-1fbedb0b63db
+      
+      # MCP Server Configuration
+      - MCP_SERVER_NAME=aparavi-mcp-server
+      - MCP_SERVER_VERSION=0.1.0
+      - LOG_LEVEL=INFO
+      - CACHE_ENABLED=true
+      - CACHE_TTL=300
+      
+      # HTTP Mode Configuration
+      - MCP_SERVER_MODE=http
+      - MCP_HTTP_HOST=0.0.0.0
+      - MCP_HTTP_PORT=8080
+
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    networks:
+      - aparavi-network
+    restart: unless-stopped
+    command: ["python", "-m", "aparavi_mcp.docker_server"]
+
+networks:
+  aparavi-network:
+    driver: bridge
+    name: aparavi-mcp-network
+
+volumes:
+  aparavi-logs:
+    driver: local
+  aparavi-data:
+    driver: local
