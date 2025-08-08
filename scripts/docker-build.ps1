@@ -40,6 +40,13 @@ if ($NoBuildCache) {
 if ($MultiPlatform) {
     $BuildArgs += "--platform", "linux/amd64,linux/arm64"
     Write-Host "Building for multiple platforms: linux/amd64, linux/arm64" -ForegroundColor Cyan
+    
+    # Multiplatform builds require push to registry, cannot use --load
+    if (-not $Push) {
+        Write-Host "WARNING: Multiplatform builds cannot be loaded locally." -ForegroundColor Yellow
+        Write-Host "Automatically enabling push to registry. Make sure you're logged in to Docker Hub or specify a registry." -ForegroundColor Yellow
+        $Push = $true
+    }
 }
 
 # Registry and push support
@@ -54,6 +61,7 @@ if ($Push) {
     Write-Host "Will push to registry after build" -ForegroundColor Cyan
 } else {
     $BuildArgs += "--load"
+    Write-Host "Will load image locally" -ForegroundColor Cyan
 }
 
 # Build the Docker image using Buildx

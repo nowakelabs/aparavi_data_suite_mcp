@@ -1,6 +1,6 @@
 # Multi-stage build for Aparavi MCP Server
 # Stage 1: Build stage with all dependencies
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set build arguments
 ARG DEBIAN_FRONTEND=noninteractive
@@ -25,7 +25,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev
 
 # Stage 2: Runtime stage
-FROM python:3.11-slim as runtime
+FROM python:3.11-slim AS runtime
 
 # Set runtime arguments
 ARG DEBIAN_FRONTEND=noninteractive
