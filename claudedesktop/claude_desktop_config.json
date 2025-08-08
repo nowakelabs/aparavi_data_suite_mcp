@@ -1,18 +1,19 @@
 {
   "mcpServers": {
     "aparavi-mcp-server": {
-      "command": "c:\\Users\\matth\\Documents\\GitHub\\aparavi_data_suite_mcp\\.venv\\Scripts\\python.exe",
+      "command": "docker",
       "args": [
-        "c:\\Users\\matth\\Documents\\GitHub\\aparavi_data_suite_mcp\\scripts\\start_server.py"
-      ],
-      "cwd": "c:\\Users\\matth\\Documents\\GitHub\\aparavi_data_suite_mcp",
-      "env": {
-        "APARAVI_HOST": "localhost",
-        "APARAVI_PORT": "80",
-        "APARAVI_USERNAME": "root",
-        "APARAVI_PASSWORD": "root",
-        "LOG_LEVEL": "INFO"
-      }
+        "run",
+        "--rm",
+        "-i",
+        "-e", "APARAVI_HOST=host.docker.internal",
+        "-e", "APARAVI_PORT=80",
+        "-e", "APARAVI_USERNAME=root",
+        "-e", "APARAVI_PASSWORD=root",
+        "-e", "LOG_LEVEL=INFO",
+        "nowakelabs/aparavi-mcp-server:latest",
+        "python", "/app/scripts/start_server.py"
+      ]
     }
   }
 }
