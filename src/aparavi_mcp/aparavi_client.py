@@ -260,6 +260,78 @@ class AparaviClient:
             self.logger.error(f"Query validation failed: {format_error_message(e)}")
             return False
     
+    async def discover_client_object_id(self) -> Optional[str]:
+        """
+        Automatically discover the client object ID using AQL query.
+        
+        Uses the query: SELECT node, nodeObjectId WHERE nodeObjectID IS NOT NULL LIMIT 1
+        The nodeObjectId returned is the same as the clientObjectId needed for tagging operations.
+        
+        Returns:
+            Optional[str]: The discovered client object ID, or None if not found
+        """
+        try:
+            await self.initialize()
+            
+            # AQL query to discover client object ID
+            aql_query = "SELECT node, nodeObjectId WHERE nodeObjectID IS NOT NULL LIMIT 1"
+            
+            self.logger.info("Attempting to auto-discover client object ID...")
+            result = await self.execute_query(aql_query, format_type="json")
+            
+            # Handle the correct API response format: {"status":"OK","data":{"objects":[...]}}
+            if (result and 'data' in result and 'objects' in result['data'] 
+                and result['data']['objects']):
+                # Extract nodeObjectId from the first result
+                first_row = result['data']['objects'][0]
+                if 'nodeObjectId' in first_row:
+                    discovered_id = first_row['nodeObjectId']
+                    self.logger.info(f"Successfully discovered client object ID: {discovered_id}")
+                    return discovered_id
+            
+            self.logger.warning("Could not discover client object ID - no results returned")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Failed to discover client object ID: {str(e)}")
+            return None
+    
+    async def discover_base_url(self) -> Optional[str]:
+        """
+        Automatically discover the base URL of the APARAVI API.
+        
+        Uses the query: SELECT node, nodeObjectId WHERE nodeObjectID IS NOT NULL LIMIT 1
+        The node returned is the same as the base URL needed for tagging operations.
+        
+        Returns:
+            Optional[str]: The discovered base URL, or None if not found
+        """
+        try:
+            await self.initialize()
+            
+            # AQL query to discover base URL
+            aql_query = "SELECT node, nodeObjectId WHERE nodeObjectID IS NOT NULL LIMIT 1"
+            
+            self.logger.info("Attempting to auto-discover base URL...")
+            result = await self.execute_query(aql_query, format_type="json")
+            
+            # Handle the correct API response format: {"status":"OK","data":{"objects":[...]}}
+            if (result and 'data' in result and 'objects' in result['data'] 
+                and result['data']['objects']):
+                # Extract node from the first result
+                first_row = result['data']['objects'][0]
+                if 'node' in first_row:
+                    discovered_url = first_row['node']
+                    self.logger.info(f"Successfully discovered base URL: {discovered_url}")
+                    return discovered_url
+            
+            self.logger.warning("Could not discover base URL - no results returned")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Failed to discover base URL: {str(e)}")
+            return None
+    
     def clear_cache(self) -> None:
         """Clear the query cache."""
         self._cache.clear()
@@ -520,6 +592,41 @@ class AparaviClient:
             self.logger.error(error_msg)
             raise AparaviAPIError(error_msg)
     
+    async def ensure_client_object_id(self) -> str:
+        """
+        Ensure client object ID is available, discovering it automatically if needed.
+        
+        Logic:
+        1. Check if already configured in config or environment variables
+        2. If not present or blank, perform auto-discovery
+        3. Cache the discovered ID for future use
+        
+        Returns:
+            str: The client object ID
+            
+        Raises:
+            AparaviAPIError: If client object ID cannot be obtained
+        """
+        # Check if already configured and not blank
+        if self.client_object_id and self.client_object_id.strip():
+            self.logger.debug(f"Using configured client object ID: {self.client_object_id}")
+            return self.client_object_id
+        
+        # Try to discover it automatically
+        self.logger.info("Client object ID not configured or blank, attempting auto-discovery...")
+        discovered_id = await self.discover_client_object_id()
+        if discovered_id:
+            self.client_object_id = discovered_id
+            self.logger.info(f"Auto-discovered and cached client object ID: {discovered_id}")
+            return self.client_object_id
+        
+        # If discovery failed, raise an error with helpful message
+        raise AparaviAPIError(
+            "Client object ID not available. Unable to auto-discover from server. "
+            "Please set APARAVI_CLIENT_OBJECT_ID environment variable manually or ensure "
+            "the Aparavi server is accessible and contains data."
+        )
+
     def validate_tag_names(self, tag_names: List[str]) -> List[str]:
         """Validate tag names according to Aparavi requirements.
         
