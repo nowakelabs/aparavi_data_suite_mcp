@@ -2141,11 +2141,13 @@ class AparaviMCPServer:
                 workflow_params = {}
             
             # Check if client object ID is configured
-            if not self.aparavi_client.client_object_id:
+            try:
+                await self.aparavi_client.ensure_client_object_id()
+            except Exception as e:
                 return {
                     "content": [{
                         "type": "text", 
-                        "text": "Error: Client object ID not configured. Please set APARAVI_CLIENT_OBJECT_ID in your .env file."
+                        "text": f"Error: Could not obtain client object ID. {str(e)}"
                     }],
                     "isError": True
                 }
@@ -2541,12 +2543,14 @@ class AparaviMCPServer:
                     "isError": True
                 }
             
-            # Check if client object ID is configured
-            if not self.aparavi_client.client_object_id:
+            # Ensure client object ID is available (with auto-discovery)
+            try:
+                await self.aparavi_client.ensure_client_object_id()
+            except Exception as e:
                 return {
                     "content": [{
                         "type": "text", 
-                        "text": "Error: Client object ID not configured. Please set APARAVI_CLIENT_OBJECT_ID in your .env file.\n\nExample format:\nAPARAVI_CLIENT_OBJECT_ID=f7388d0e-apag-4e86-86f0-1fbedb0b63db"
+                        "text": f"Error: Could not obtain client object ID. {str(e)}"
                     }],
                     "isError": True
                 }
@@ -2601,12 +2605,14 @@ class AparaviMCPServer:
                     "isError": True
                 }
             
-            # Check if client object ID is configured
-            if not self.aparavi_client.client_object_id:
+            # Ensure client object ID is available (with auto-discovery)
+            try:
+                await self.aparavi_client.ensure_client_object_id()
+            except Exception as e:
                 return {
                     "content": [{
                         "type": "text", 
-                        "text": "Error: Client object ID not configured. Please set APARAVI_CLIENT_OBJECT_ID in your .env file."
+                        "text": f"Error: Could not obtain client object ID. {str(e)}"
                     }],
                     "isError": True
                 }
@@ -2760,11 +2766,13 @@ class AparaviMCPServer:
                 workflow_params = {}
             
             # Check if client object ID is configured
-            if not self.aparavi_client.client_object_id:
+            try:
+                await self.aparavi_client.ensure_client_object_id()
+            except Exception as e:
                 return {
                     "content": [{
                         "type": "text", 
-                        "text": "Error: Client object ID not configured. Please set APARAVI_CLIENT_OBJECT_ID in your .env file."
+                        "text": f"Error: Could not obtain client object ID. {str(e)}"
                     }],
                     "isError": True
                 }
