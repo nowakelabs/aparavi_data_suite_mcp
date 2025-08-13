@@ -20,7 +20,7 @@ class AparaviConfig(BaseModel):
     username: str = Field(..., description="Aparavi Data Suite username for authentication")
     password: str = Field(..., description="Aparavi Data Suite password for authentication")
     api_version: str = Field(default="v3", description="Aparavi Data Suite API version")
-    timeout: int = Field(default=30, description="Request timeout in seconds")
+    timeout: int = Field(default=1800, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum number of retries")
     client_object_id: Optional[str] = Field(default=None, description="Client object ID for tagging operations")
     
@@ -69,7 +69,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
         username=os.getenv("APARAVI_USERNAME", ""),
         password=os.getenv("APARAVI_PASSWORD", ""),
         api_version=os.getenv("APARAVI_API_VERSION", "v3"),
-        timeout=int(os.getenv("APARAVI_TIMEOUT", "30")),
+        timeout=int(os.getenv("APARAVI_TIMEOUT", "1800")),
         max_retries=int(os.getenv("APARAVI_MAX_RETRIES", "3")),
         client_object_id=os.getenv("APARAVI_CLIENT_OBJECT_ID")
     )

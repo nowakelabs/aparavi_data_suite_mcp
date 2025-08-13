@@ -10,6 +10,9 @@
         "-e", "APARAVI_PORT=80",
         "-e", "APARAVI_USERNAME=root",
         "-e", "APARAVI_PASSWORD=root",
+        "-e", "APARAVI_TIMEOUT=1800",
+        "-e", "CACHE_TTL=3600",
+        "-e", "CACHE_ENABLED=true",
         "-e", "LOG_LEVEL=INFO",
         "nowakelabs/aparavi-mcp-server:latest",
         "python", "/app/scripts/start_server.py"

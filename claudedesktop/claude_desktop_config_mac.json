@@ -11,6 +11,9 @@
         "APARAVI_PORT": "80",
         "APARAVI_USERNAME": "root",
         "APARAVI_PASSWORD": "root",
+        "APARAVI_TIMEOUT": "1800",
+        "CACHE_TTL": "3600",
+        "CACHE_ENABLED": "true",
         "LOG_LEVEL": "INFO"
       }
     }

@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # Aparavi MCP Server - HTTP Mode Only
@@ -16,7 +15,7 @@ services:
       - APARAVI_USERNAME=root
       - APARAVI_PASSWORD=root
       - APARAVI_API_VERSION=v3
-      - APARAVI_TIMEOUT=30
+      - APARAVI_TIMEOUT=1800
       - APARAVI_MAX_RETRIES=3
       - APARAVI_CLIENT_OBJECT_ID=f7388d0e-apag-4e86-86f0-1fbedb0b63db
       
@@ -25,7 +24,7 @@ services:
       - MCP_SERVER_VERSION=0.1.0
       - LOG_LEVEL=INFO
       - CACHE_ENABLED=true
-      - CACHE_TTL=300
+      - CACHE_TTL=3600
       
       # HTTP Mode Configuration
       - MCP_SERVER_MODE=http
