@@ -1,13 +1,16 @@
 {
   "mcpServers": {
     "aparavi-mcp-server": {
-      "command": "~/Documents/GitHub/aparavi_data_suite_mcp/.venv/bin/python",
+      "command": "uv",
       "args": [
-        "~/Documents/GitHub/aparavi_data_suite_mcp/scripts/start_server.py"
+        "run",
+        "--project",
+        "/Users/mattcarpenter/Documents/GitHub/aparavi_data_suite_mcp",
+        "aparavi-mcp-server"
       ],
-      "cwd": "~/Documents/GitHub/aparavi_data_suite_mcp",
+      "cwd": "/Users/mattcarpenter/Documents/GitHub/aparavi_data_suite_mcp",
       "env": {
-        "APARAVI_HOST": "localhost",
+        "APARAVI_HOST": "10.1.10.163",
         "APARAVI_PORT": "80",
         "APARAVI_USERNAME": "root",
         "APARAVI_PASSWORD": "root",
