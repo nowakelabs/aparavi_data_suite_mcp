@@ -3,7 +3,7 @@
 # Requires: PowerShell 5.1 or later
 
 param(
-    [string]$AparaviHost = "localhost",
+    [string]$AparaviHost = "10.1.10.163",
     [int]$AparaviPort = 80,
     [string]$Username = "root",
     [string]$Password = "root",
@@ -657,7 +657,7 @@ function Show-ReportMenu {
     )
     
     Write-Host "`nAvailable Reports:" -ForegroundColor Cyan
-    Write-Host "=" * 50
+    Write-Host ("=" * 50)
     
     for ($i = 0; $i -lt $Reports.Count; $i++) {
         Write-Host "$($i + 1). $($Reports[$i].Name)" -ForegroundColor White
@@ -665,7 +665,7 @@ function Show-ReportMenu {
     
     Write-Host "$($Reports.Count + 1). Run All Reports" -ForegroundColor Yellow
     Write-Host "0. Exit" -ForegroundColor Red
-    Write-Host "=" * 50
+    Write-Host ("=" * 50)
     
     do {
         $Selection = Read-Host "Select report number (0-$($Reports.Count + 1))"
@@ -746,7 +746,7 @@ if ($Interactive) {
         
         $OverallExecutionTime = (Get-Date) - $OverallStartTime
         
-        Write-Host "=" * 50
+        Write-Host ("=" * 50)
         Write-Log "Execution batch complete! Successfully executed: $SuccessCount/$TotalReports reports in $($OverallExecutionTime.TotalSeconds.ToString('F2')) seconds" "SUCCESS"
         
         # Ask if user wants to run more reports
@@ -775,7 +775,7 @@ else {
     
     $OverallExecutionTime = (Get-Date) - $OverallStartTime
     
-    Write-Host "=" * 50
+    Write-Host ("=" * 50)
     Write-Log "Execution Complete! Successfully executed: $SuccessCount/$TotalReports reports in $($OverallExecutionTime.TotalSeconds.ToString('F2')) seconds" "SUCCESS"
 }
 
