@@ -3,12 +3,12 @@
 # Requires: PowerShell 5.1 or later
 
 param(
-    [string]$AparaviHost = "10.1.10.163",
+    [string]$AparaviHost = "localhost",
     [int]$AparaviPort = 80,
     [string]$Username = "root",
     [string]$Password = "root",
     [switch]$Interactive,
-    [switch]$IncludeLongRunningReports
+    [switch]$IncludeSlow
 )
 
 # Create reports directory if it doesn't exist
@@ -675,10 +675,10 @@ Write-Log "Target: $BaseUrl" "INFO"
 Write-Log "Output Directory: $ReportsDir" "INFO"
 Write-Log "Log File: $LogFile" "INFO"
 Write-Log "Interactive Mode: $Interactive" "INFO"
-Write-Log "Include Long Running Reports: $IncludeLongRunningReports" "INFO"
+Write-Log "Include Slow Reports: $IncludeSlow" "INFO"
 
 # Filter reports based on long running status
-$FilteredReports = if ($IncludeLongRunningReports) {
+$FilteredReports = if ($IncludeSlow) {
     $Reports
 } else {
     $Reports | Where-Object { -not $_.IsLongRunning }
@@ -689,9 +689,9 @@ Write-Host "Starting Aparavi AQL Reports Execution" -ForegroundColor Cyan
 Write-Host "Target: $BaseUrl" -ForegroundColor Cyan
 Write-Host "Output Directory: $ReportsDir" -ForegroundColor Cyan
 Write-Host "Log File: $LogFile" -ForegroundColor Cyan
-if (-not $IncludeLongRunningReports) {
+if (-not $IncludeSlow) {
     $LongRunningReportCount = ($Reports | Where-Object { $_.IsLongRunning }).Count
-    Write-Host "Excluding $LongRunningReportCount long running reports (use -IncludeLongRunningReports to include)" -ForegroundColor Yellow
+    Write-Host "Excluding $LongRunningReportCount slow reports (use -IncludeSlow to include)" -ForegroundColor Yellow
 }
 Write-Host ("=" * 50)
 
