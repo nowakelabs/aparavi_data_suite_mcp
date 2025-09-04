@@ -7,7 +7,8 @@ param(
     [int]$AparaviPort = 80,
     [string]$Username = "root",
     [string]$Password = "root",
-    [switch]$Interactive
+    [switch]$Interactive,
+    [switch]$IncludeCategoryReports
 )
 
 # Create reports directory if it doesn't exist
@@ -51,7 +52,7 @@ $Headers = @{
     "Content-Type" = "application/json"
 }
 
-# Define all reports with their names and AQL queries
+# Define all reports with their names, AQL queries, and category usage flag
 $Reports = @(
     @{
         Name = "Data_Sources_Overview"
@@ -144,6 +145,7 @@ ORDER BY
     },
     @{
         Name = "Duplicate_File_Summary"
+        UsesCategory = $true
         Query = @"
 -- Infrastructure-Wide Duplicate File Summary
 SELECT
@@ -260,6 +262,7 @@ ORDER BY
     },
     @{
         Name = "Monthly_Data_Growth_by_Category"
+        UsesCategory = $true
         Query = @"
 SELECT
  YEAR(createTime) AS "Year",
@@ -282,6 +285,7 @@ ORDER BY
     },
     @{
         Name = "User_Owner_File_Categories_Summary"
+        UsesCategory = $true
         Query = @"
 SELECT
  osOwner AS "User/Owner",
@@ -302,6 +306,7 @@ ORDER BY
     },
     @{
         Name = "Access_Permissions_File_Categories_Summary"
+        UsesCategory = $true
         Query = @"
 SELECT
  osPermission AS "User",
@@ -571,6 +576,7 @@ COUNT(name) DESC;
     },
     @{
         Name = "File_Type_Category_Summary_Detailed"
+        UsesCategory = $true
         Query = @"
 SELECT
  COALESCE(CATEGORY, 'Uncategorized') AS "Aparavi Category",
@@ -660,7 +666,13 @@ function Show-ReportMenu {
     Write-Host ("=" * 50)
     
     for ($i = 0; $i -lt $Reports.Count; $i++) {
-        Write-Host "$($i + 1). $($Reports[$i].Name)" -ForegroundColor White
+        $ReportDisplay = "$($i + 1). $($Reports[$i].Name)"
+        if ($Reports[$i].UsesCategory) {
+            $ReportDisplay += " [CATEGORY - Slow]"
+            Write-Host $ReportDisplay -ForegroundColor Yellow
+        } else {
+            Write-Host $ReportDisplay -ForegroundColor White
+        }
     }
     
     Write-Host "$($Reports.Count + 1). Run All Reports" -ForegroundColor Yellow
@@ -703,21 +715,33 @@ Write-Log "Target: $BaseUrl" "INFO"
 Write-Log "Output Directory: $ReportsDir" "INFO"
 Write-Log "Log File: $LogFile" "INFO"
 Write-Log "Interactive Mode: $Interactive" "INFO"
+Write-Log "Include Category Reports: $IncludeCategoryReports" "INFO"
+
+# Filter reports based on category usage
+$FilteredReports = if ($IncludeCategoryReports) {
+    $Reports
+} else {
+    $Reports | Where-Object { -not $_.UsesCategory }
+}
 
 # Main execution
 Write-Host "Starting Aparavi AQL Reports Execution" -ForegroundColor Cyan
 Write-Host "Target: $BaseUrl" -ForegroundColor Cyan
 Write-Host "Output Directory: $ReportsDir" -ForegroundColor Cyan
 Write-Host "Log File: $LogFile" -ForegroundColor Cyan
-Write-Host "=" * 50
+if (-not $IncludeCategoryReports) {
+    $CategoryReportCount = ($Reports | Where-Object { $_.UsesCategory }).Count
+    Write-Host "Excluding $CategoryReportCount CATEGORY field reports (use -IncludeCategoryReports to include)" -ForegroundColor Yellow
+}
+Write-Host ("=" * 50)
 
 $SelectedReports = @()
 
 if ($Interactive) {
     # Interactive mode - show menu and get user selection
     do {
-        $Selection = Show-ReportMenu -Reports $Reports
-        $SelectedReports = Get-SelectedReports -AllReports $Reports -Selection $Selection
+        $Selection = Show-ReportMenu -Reports $FilteredReports
+        $SelectedReports = Get-SelectedReports -AllReports $FilteredReports -Selection $Selection
         
         if ($SelectedReports.Count -eq 0 -and $Selection -ne 0) {
             Write-Log "No reports selected" "WARNING"
@@ -758,15 +782,15 @@ if ($Interactive) {
     } while ($true)
 }
 else {
-    # Non-interactive mode - run all reports
-    $SelectedReports = $Reports
+    # Non-interactive mode - run filtered reports
+    $SelectedReports = $FilteredReports
     $SuccessCount = 0
-    $TotalReports = $Reports.Count
+    $TotalReports = $FilteredReports.Count
     $OverallStartTime = Get-Date
     
-    Write-Log "Executing all $TotalReports reports" "INFO"
+    Write-Log "Executing $TotalReports filtered reports" "INFO"
     
-    foreach ($Report in $Reports) {
+    foreach ($Report in $FilteredReports) {
         if (Invoke-AQLQuery -Query $Report.Query -ReportName $Report.Name) {
             $SuccessCount++
         }
