@@ -3,7 +3,7 @@
 # Requires: PowerShell 5.1 or later
 
 param(
-    [string]$AparaviHost = "10.1.10.163",
+    [string]$AparaviHost = "localhost",
     [int]$AparaviPort = 80,
     [string]$Username = "root",
     [string]$Password = "root",
