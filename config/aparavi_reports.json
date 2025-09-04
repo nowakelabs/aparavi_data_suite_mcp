@@ -1,15 +1,15 @@
 {
   "reports": {
     "data_sources_overview": {
-      "description": "Comprehensive analysis of data sources including size, activity indicators, and file categorization metrics",
-      "keywords": ["data source", "storage distribution", "file activity", "recent files", "stale files", "large files", "duplicates"],
+      "description": "Simple data sources overview showing storage distribution by location",
+      "keywords": ["data source", "storage distribution", "file count"],
       "business_questions": [
-        "Where is my data stored and how is it distributed?",
-        "Which sources have recent activity vs stale data?", 
-        "Which sources contain large files or many duplicates?"
+        "Which data sources consume the most storage?",
+        "What's the file count distribution across data sources?",
+        "How is storage distributed across different locations?"
       ],
-      "combine_with": ["classification_summary_by_source", "duplicate_file_summary"],
-      "query": "SELECT COMPONENTS(parentPath, 3) AS \"Data Source\", SUM(size)/1073741824 AS \"Total Size (GB)\", COUNT(name) AS \"File Count\", AVG(size)/1048576 AS \"Average File Size (MB)\", SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Files Created Last 30 Days\", SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS \"Stale Files (>1 Year)\", SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS \"Large Files (>1GB)\", SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS \"Files with Duplicates\" FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY COMPONENTS(parentPath, 3) ORDER BY \"Total Size (GB)\" DESC"
+      "combine_with": ["file_type_extension_summary", "classification_summary_by_source"],
+      "query": "SELECT COMPONENTS(parentPath, 3) as data_source, SUM(size) as total_size_bytes, COUNT(*) as file_count FROM STORE('/') WHERE ClassID = 'idxobject' GROUP BY COMPONENTS(parentPath, 3)"
     },
     "subfolder_overview": {
       "description": "Analyzes subfolder structure showing size and file count distribution across deeper directory levels",

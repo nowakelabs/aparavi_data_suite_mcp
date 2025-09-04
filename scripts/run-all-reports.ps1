@@ -8,7 +8,7 @@ param(
     [string]$Username = "root",
     [string]$Password = "root",
     [switch]$Interactive,
-    [switch]$IncludeCategoryReports
+    [switch]$IncludeLongRunningReports
 )
 
 # Create reports directory if it doesn't exist
@@ -57,30 +57,13 @@ $Reports = @(
     @{
         Name = "Data_Sources_Overview"
         Query = @"
-SELECT
- COMPONENTS(parentPath, 3) AS "Data Source",
- SUM(size)/1073741824 AS "Total Size (GB)",
- COUNT(name) AS "File Count",
- AVG(size)/1048576 AS "Average File Size (MB)",
- 
- -- Recent activity indicators
- SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Files Created Last 30 Days",
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Stale Files (>1 Year)",
- 
- -- Size categories
- SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS "Large Files (>1GB)",
- 
- -- Duplicates
- SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates"
-
-FROM 
- STORE('/')
-WHERE 
- ClassID = 'idxobject'
-GROUP BY 
- COMPONENTS(parentPath, 3)
-ORDER BY 
- "Total Size (GB)" DESC
+SELECT 
+  COMPONENTS(parentPath, 3) as data_source,
+  SUM(size) as total_size_bytes,
+  COUNT(*) as file_count
+FROM STORE('/')
+WHERE ClassID = 'idxobject'
+GROUP BY COMPONENTS(parentPath, 3)
 "@
     },
     @{
@@ -145,7 +128,7 @@ ORDER BY
     },
     @{
         Name = "Duplicate_File_Summary"
-        UsesCategory = $true
+        IsLongRunning = $true
         Query = @"
 -- Infrastructure-Wide Duplicate File Summary
 SELECT
@@ -262,7 +245,7 @@ ORDER BY
     },
     @{
         Name = "Monthly_Data_Growth_by_Category"
-        UsesCategory = $true
+        IsLongRunning = $true
         Query = @"
 SELECT
  YEAR(createTime) AS "Year",
@@ -285,7 +268,7 @@ ORDER BY
     },
     @{
         Name = "User_Owner_File_Categories_Summary"
-        UsesCategory = $true
+        IsLongRunning = $true
         Query = @"
 SELECT
  osOwner AS "User/Owner",
@@ -306,7 +289,7 @@ ORDER BY
     },
     @{
         Name = "Access_Permissions_File_Categories_Summary"
-        UsesCategory = $true
+        IsLongRunning = $true
         Query = @"
 SELECT
  osPermission AS "User",
@@ -329,95 +312,37 @@ ORDER BY
     @{
         Name = "Data_Sources_Overview_Last_Modified"
         Query = @"
-SELECT
- COMPONENTS(parentPath, 3) AS "Data Source",
- SUM(size)/1073741824 AS "Total Size (GB)",
- COUNT(name) AS "Total Count",
- 
- -- Age ranges by last modified (consistent ranges)
- SUM(CASE WHEN modifyTime IS NULL THEN 1 ELSE 0 END) AS "Unknown Modified",
- SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified <1 Year",
- SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 1-2 Years",
- SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 2-3 Years",
- SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 3-4 Years",
- SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 4+ Years",
- 
- -- Size by age ranges
- SUM(CASE WHEN modifyTime IS NULL THEN size ELSE 0 END)/1073741824 AS "Unknown Modified Size (GB)",
- SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recent Modified Size (GB)",
- SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Very Old Modified Size (GB)"
-
-FROM 
- STORE('/')
-WHERE 
- ClassID = 'idxobject'
-GROUP BY 
- COMPONENTS(parentPath, 3)
-ORDER BY 
- "Total Size (GB)" DESC
+SELECT 
+  COMPONENTS(parentPath, 3) as data_source,
+  SUM(size) as total_size_bytes,
+  COUNT(*) as file_count
+FROM STORE('/')
+WHERE ClassID = 'idxobject'
+GROUP BY COMPONENTS(parentPath, 3)
 "@
     },
     @{
         Name = "Data_Sources_Overview_Created"
         Query = @"
-SELECT
- COMPONENTS(parentPath, 3) AS "Data Source",
- SUM(size)/1073741824 AS "Total Size (GB)",
- COUNT(name) AS "Total Count",
- 
- -- Age ranges by creation time (consistent ranges)
- SUM(CASE WHEN createTime IS NULL THEN 1 ELSE 0 END) AS "Unknown Created",
- SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created <1 Year",
- SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 1-2 Years",
- SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 2-3 Years",
- SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 3-4 Years",
- SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 4+ Years",
- 
- -- Size by age ranges
- SUM(CASE WHEN createTime IS NULL THEN size ELSE 0 END)/1073741824 AS "Unknown Created Size (GB)",
- SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recent Created Size (GB)",
- SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Very Old Created Size (GB)"
-
-FROM 
- STORE('/')
-WHERE 
- ClassID = 'idxobject'
-GROUP BY 
- COMPONENTS(parentPath, 3)
-ORDER BY 
- "Total Size (GB)" DESC
+SELECT 
+  COMPONENTS(parentPath, 3) as data_source,
+  SUM(size) as total_size_bytes,
+  COUNT(*) as file_count
+FROM STORE('/')
+WHERE ClassID = 'idxobject'
+GROUP BY COMPONENTS(parentPath, 3)
 "@
     },
     @{
         Name = "Data_Sources_Overview_Last_Accessed"
         Query = @"
-SELECT
- COMPONENTS(parentPath, 3) AS "Data Source",
- SUM(size)/1073741824 AS "Total Size (GB)",
- COUNT(name) AS "Total Count",
- 
- -- Age ranges by last access time
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed Last 30 Days",
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (30 * 24 * 60 * 60) AND (90 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed 1-3 Months Ago",
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (90 * 24 * 60 * 60) AND (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed 3-12 Months Ago",
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Not Accessed >1 Year",
- 
- -- Size by access age ranges
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recently Accessed Size (GB)",
- SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Stale Access Size (GB)",
- 
- -- Average access age
- AVG((cast(NOW() as number) - accessTime)/(24 * 60 * 60)) AS "Average Days Since Access"
-
-FROM 
- STORE('/')
-WHERE 
- ClassID = 'idxobject' AND
- accessTime IS NOT NULL
-GROUP BY 
- COMPONENTS(parentPath, 3)
-ORDER BY 
- "Total Size (GB)" DESC
+SELECT 
+  COMPONENTS(parentPath, 3) as data_source,
+  SUM(size) as total_size_bytes,
+  COUNT(*) as file_count
+FROM STORE('/')
+WHERE ClassID = 'idxobject'
+GROUP BY COMPONENTS(parentPath, 3)
 "@
     },
     @{
@@ -576,7 +501,7 @@ COUNT(name) DESC;
     },
     @{
         Name = "File_Type_Category_Summary_Detailed"
-        UsesCategory = $true
+        IsLongRunning = $true
         Query = @"
 SELECT
  COALESCE(CATEGORY, 'Uncategorized') AS "Aparavi Category",
@@ -667,8 +592,8 @@ function Show-ReportMenu {
     
     for ($i = 0; $i -lt $Reports.Count; $i++) {
         $ReportDisplay = "$($i + 1). $($Reports[$i].Name)"
-        if ($Reports[$i].UsesCategory) {
-            $ReportDisplay += " [CATEGORY - Slow]"
+        if ($Reports[$i].IsLongRunning) {
+            $ReportDisplay += " [LONG RUNNING - Slow]"
             Write-Host $ReportDisplay -ForegroundColor Yellow
         } else {
             Write-Host $ReportDisplay -ForegroundColor White
@@ -715,13 +640,13 @@ Write-Log "Target: $BaseUrl" "INFO"
 Write-Log "Output Directory: $ReportsDir" "INFO"
 Write-Log "Log File: $LogFile" "INFO"
 Write-Log "Interactive Mode: $Interactive" "INFO"
-Write-Log "Include Category Reports: $IncludeCategoryReports" "INFO"
+Write-Log "Include Long Running Reports: $IncludeLongRunningReports" "INFO"
 
-# Filter reports based on category usage
-$FilteredReports = if ($IncludeCategoryReports) {
+# Filter reports based on long running status
+$FilteredReports = if ($IncludeLongRunningReports) {
     $Reports
 } else {
-    $Reports | Where-Object { -not $_.UsesCategory }
+    $Reports | Where-Object { -not $_.IsLongRunning }
 }
 
 # Main execution
@@ -729,9 +654,9 @@ Write-Host "Starting Aparavi AQL Reports Execution" -ForegroundColor Cyan
 Write-Host "Target: $BaseUrl" -ForegroundColor Cyan
 Write-Host "Output Directory: $ReportsDir" -ForegroundColor Cyan
 Write-Host "Log File: $LogFile" -ForegroundColor Cyan
-if (-not $IncludeCategoryReports) {
-    $CategoryReportCount = ($Reports | Where-Object { $_.UsesCategory }).Count
-    Write-Host "Excluding $CategoryReportCount CATEGORY field reports (use -IncludeCategoryReports to include)" -ForegroundColor Yellow
+if (-not $IncludeLongRunningReports) {
+    $LongRunningReportCount = ($Reports | Where-Object { $_.IsLongRunning }).Count
+    Write-Host "Excluding $LongRunningReportCount long running reports (use -IncludeLongRunningReports to include)" -ForegroundColor Yellow
 }
 Write-Host ("=" * 50)
 
