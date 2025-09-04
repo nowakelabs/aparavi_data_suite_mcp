@@ -3,7 +3,7 @@
 # Requires: PowerShell 5.1 or later
 
 param(
-    [string]$AparaviHost = "localhost",
+    [string]$AparaviHost = "10.1.10.163",
     [int]$AparaviPort = 80,
     [string]$Username = "root",
     [string]$Password = "root",
@@ -12,14 +12,20 @@ param(
 )
 
 # Create reports directory if it doesn't exist
-$ReportsDir = Join-Path $PSScriptRoot "reports"
-if (!(Test-Path $ReportsDir)) {
-    New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null
-    Write-Host "Created reports directory: $ReportsDir" -ForegroundColor Green
+$BaseReportsDir = Join-Path $PSScriptRoot "reports"
+if (!(Test-Path $BaseReportsDir)) {
+    New-Item -ItemType Directory -Path $BaseReportsDir -Force | Out-Null
+    Write-Host "Created reports directory: $BaseReportsDir" -ForegroundColor Green
 }
 
-# Create log file with timestamp
-$LogFile = Join-Path $ReportsDir "execution_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+# Create timestamped subdirectory for this run
+$RunTimestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+$ReportsDir = Join-Path $BaseReportsDir $RunTimestamp
+New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null
+Write-Host "Created run directory: $ReportsDir" -ForegroundColor Green
+
+# Create log file with timestamp in the run directory
+$LogFile = Join-Path $ReportsDir "$RunTimestamp.log"
 
 # Logging function
 function Write-Log {
@@ -313,36 +319,64 @@ ORDER BY
         Name = "Data_Sources_Overview_Last_Modified"
         Query = @"
 SELECT 
-  COMPONENTS(parentPath, 3) as data_source,
-  SUM(size) as total_size_bytes,
-  COUNT(*) as file_count
+  COMPONENTS(parentPath, 3) AS "Data Source",
+  SUM(size)/1073741824 AS "Total Size (GB)",
+  COUNT(name) AS "Total Count",
+  SUM(CASE WHEN modifyTime IS NULL THEN 1 ELSE 0 END) AS "Unknown Modified",
+  SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified <1 Year",
+  SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 1-2 Years",
+  SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 2-3 Years",
+  SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 3-4 Years",
+  SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 4+ Years",
+  SUM(CASE WHEN modifyTime IS NULL THEN size ELSE 0 END)/1073741824 AS "Unknown Modified Size (GB)",
+  SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recent Modified Size (GB)",
+  SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Very Old Modified Size (GB)"
 FROM STORE('/')
 WHERE ClassID = 'idxobject'
 GROUP BY COMPONENTS(parentPath, 3)
+ORDER BY "Total Size (GB)" DESC
 "@
     },
     @{
         Name = "Data_Sources_Overview_Created"
         Query = @"
 SELECT 
-  COMPONENTS(parentPath, 3) as data_source,
-  SUM(size) as total_size_bytes,
-  COUNT(*) as file_count
+  COMPONENTS(parentPath, 3) AS "Data Source",
+  SUM(size)/1073741824 AS "Total Size (GB)",
+  COUNT(name) AS "Total Count",
+  SUM(CASE WHEN createTime IS NULL THEN 1 ELSE 0 END) AS "Unknown Created",
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created <1 Year",
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 1-2 Years",
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 2-3 Years",
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 3-4 Years",
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 4+ Years",
+  SUM(CASE WHEN createTime IS NULL THEN size ELSE 0 END)/1073741824 AS "Unknown Created Size (GB)",
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recent Created Size (GB)",
+  SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Very Old Created Size (GB)"
 FROM STORE('/')
 WHERE ClassID = 'idxobject'
 GROUP BY COMPONENTS(parentPath, 3)
+ORDER BY "Total Size (GB)" DESC
 "@
     },
     @{
         Name = "Data_Sources_Overview_Last_Accessed"
         Query = @"
 SELECT 
-  COMPONENTS(parentPath, 3) as data_source,
-  SUM(size) as total_size_bytes,
-  COUNT(*) as file_count
+  COMPONENTS(parentPath, 3) AS "Data Source",
+  SUM(size)/1073741824 AS "Total Size (GB)",
+  COUNT(name) AS "Total Count",
+  SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed Last 30 Days",
+  SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (30 * 24 * 60 * 60) AND (90 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed 1-3 Months Ago",
+  SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (90 * 24 * 60 * 60) AND (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed 3-12 Months Ago",
+  SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Not Accessed >1 Year",
+  SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recently Accessed Size (GB)",
+  SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Stale Access Size (GB)",
+  AVG((cast(NOW() as number) - accessTime)/(24 * 60 * 60)) AS "Average Days Since Access"
 FROM STORE('/')
-WHERE ClassID = 'idxobject'
+WHERE ClassID = 'idxobject' AND accessTime IS NOT NULL
 GROUP BY COMPONENTS(parentPath, 3)
+ORDER BY "Total Size (GB)" DESC
 "@
     },
     @{
