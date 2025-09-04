@@ -257,6 +257,352 @@ GROUP BY
 ORDER BY  
  "File Count" DESC
 "@
+    },
+    @{
+        Name = "Monthly_Data_Growth_by_Category"
+        Query = @"
+SELECT
+ YEAR(createTime) AS "Year",
+ MONTH(createTime) AS "Month", 
+ CATEGORY AS "File Category",
+ COUNT(name) AS "Files Added",
+ SUM(size)/1073741824 AS "Size Added (GB)"
+
+FROM 
+ STORE('/')
+WHERE
+ ClassID = 'idxobject' AND
+ createTime IS NOT NULL AND
+ CATEGORY IS NOT NULL
+GROUP BY
+ YEAR(createTime), MONTH(createTime), CATEGORY
+ORDER BY
+ "Year" DESC, "Month" DESC, "Size Added (GB)" DESC
+"@
+    },
+    @{
+        Name = "User_Owner_File_Categories_Summary"
+        Query = @"
+SELECT
+ osOwner AS "User/Owner",
+ CATEGORY AS "File Category",
+ COUNT(name) AS "File Count",
+ SUM(size)/1073741824 AS "Total Size (GB)"
+FROM 
+ STORE('/')
+WHERE
+ createTime >= '2024-01-01' AND
+ ClassID = 'idxobject' AND
+ CATEGORY IS NOT NULL
+GROUP BY
+ osOwner, CATEGORY
+ORDER BY
+ "Total Size (GB)" DESC
+"@
+    },
+    @{
+        Name = "Access_Permissions_File_Categories_Summary"
+        Query = @"
+SELECT
+ osPermission AS "User",
+ CATEGORY AS "File Category",
+ COUNT(name) AS "File Count",
+ SUM(size)/1073741824 AS "Total Size (GB)"
+FROM 
+ STORE('/')
+WHERE
+ createTime >= '2024-01-01' AND
+ ClassID = 'idxobject' AND
+ CATEGORY IS NOT NULL AND
+ osPermission IS NOT NULL
+GROUP BY
+ osPermission, CATEGORY
+ORDER BY
+ "Total Size (GB)" DESC
+"@
+    },
+    @{
+        Name = "Data_Sources_Overview_Last_Modified"
+        Query = @"
+SELECT
+ COMPONENTS(parentPath, 3) AS "Data Source",
+ SUM(size)/1073741824 AS "Total Size (GB)",
+ COUNT(name) AS "Total Count",
+ 
+ -- Age ranges by last modified (consistent ranges)
+ SUM(CASE WHEN modifyTime IS NULL THEN 1 ELSE 0 END) AS "Unknown Modified",
+ SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified <1 Year",
+ SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 1-2 Years",
+ SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 2-3 Years",
+ SUM(CASE WHEN (cast(NOW() as number) - modifyTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 3-4 Years",
+ SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Modified 4+ Years",
+ 
+ -- Size by age ranges
+ SUM(CASE WHEN modifyTime IS NULL THEN size ELSE 0 END)/1073741824 AS "Unknown Modified Size (GB)",
+ SUM(CASE WHEN (cast(NOW() as number) - modifyTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recent Modified Size (GB)",
+ SUM(CASE WHEN (cast(NOW() as number) - modifyTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Very Old Modified Size (GB)"
+
+FROM 
+ STORE('/')
+WHERE 
+ ClassID = 'idxobject'
+GROUP BY 
+ COMPONENTS(parentPath, 3)
+ORDER BY 
+ "Total Size (GB)" DESC
+"@
+    },
+    @{
+        Name = "Data_Sources_Overview_Created"
+        Query = @"
+SELECT
+ COMPONENTS(parentPath, 3) AS "Data Source",
+ SUM(size)/1073741824 AS "Total Size (GB)",
+ COUNT(name) AS "Total Count",
+ 
+ -- Age ranges by creation time (consistent ranges)
+ SUM(CASE WHEN createTime IS NULL THEN 1 ELSE 0 END) AS "Unknown Created",
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created <1 Year",
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 1-2 Years",
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 2-3 Years",
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 3-4 Years",
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created 4+ Years",
+ 
+ -- Size by age ranges
+ SUM(CASE WHEN createTime IS NULL THEN size ELSE 0 END)/1073741824 AS "Unknown Created Size (GB)",
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recent Created Size (GB)",
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) > (1460 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Very Old Created Size (GB)"
+
+FROM 
+ STORE('/')
+WHERE 
+ ClassID = 'idxobject'
+GROUP BY 
+ COMPONENTS(parentPath, 3)
+ORDER BY 
+ "Total Size (GB)" DESC
+"@
+    },
+    @{
+        Name = "Data_Sources_Overview_Last_Accessed"
+        Query = @"
+SELECT
+ COMPONENTS(parentPath, 3) AS "Data Source",
+ SUM(size)/1073741824 AS "Total Size (GB)",
+ COUNT(name) AS "Total Count",
+ 
+ -- Age ranges by last access time
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed Last 30 Days",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (30 * 24 * 60 * 60) AND (90 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed 1-3 Months Ago",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) BETWEEN (90 * 24 * 60 * 60) AND (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Accessed 3-12 Months Ago",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Not Accessed >1 Year",
+ 
+ -- Size by access age ranges
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) < (30 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Recently Accessed Size (GB)",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Stale Access Size (GB)",
+ 
+ -- Average access age
+ AVG((cast(NOW() as number) - accessTime)/(24 * 60 * 60)) AS "Average Days Since Access"
+
+FROM 
+ STORE('/')
+WHERE 
+ ClassID = 'idxobject' AND
+ accessTime IS NOT NULL
+GROUP BY 
+ COMPONENTS(parentPath, 3)
+ORDER BY 
+ "Total Size (GB)" DESC
+"@
+    },
+    @{
+        Name = "File_Type_Extension_Activity"
+        Query = @"
+SELECT
+ extension AS "File Extension",
+ CASE
+   WHEN (cast(NOW() as number) - accessTime) > (180 * 24 * 60 * 60) THEN 'Stale (Not Accessed 6+ Months)'
+   WHEN (cast(NOW() as number) - modifyTime) > (180 * 24 * 60 * 60) THEN 'Read-Only (Not Modified 6+ Months)'
+   WHEN (cast(NOW() as number) - accessTime) < (7 * 24 * 60 * 60) THEN 'Very Active (Accessed This Week)'
+   ELSE 'Moderately Active'
+ END AS "Activity Status",
+ COUNT(name) AS "File Count",
+ SUM(size)/1073741824 AS "Total Size (GB)",
+ AVG(size)/1048576 AS "Average File Size (MB)"
+FROM 
+ STORE('/')
+WHERE
+ (cast(NOW() as number) - createTime) > (180 * 24 * 60 * 60) AND
+ ClassID = 'idxobject'
+GROUP BY
+ extension,
+ CASE
+   WHEN (cast(NOW() as number) - accessTime) > (180 * 24 * 60 * 60) THEN 'Stale (Not Accessed 6+ Months)'
+   WHEN (cast(NOW() as number) - modifyTime) > (180 * 24 * 60 * 60) THEN 'Read-Only (Not Modified 6+ Months)'
+   WHEN (cast(NOW() as number) - accessTime) < (7 * 24 * 60 * 60) THEN 'Very Active (Accessed This Week)'
+   ELSE 'Moderately Active'
+ END
+ORDER BY
+ extension
+"@
+    },
+    @{
+        Name = "Duplicate_File_Summary_Detailed"
+        Query = @"
+SELECT
+ CASE 
+   WHEN createTime IS NULL THEN 'Unknown Age'
+   WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 'Created <1 Year'
+   WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 'Created 1-2 Years'
+   WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 'Created 2-3 Years'
+   WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 'Created 3-4 Years'
+   ELSE 'Created 4+ Years'
+ END AS "Age Group",
+ 
+ -- Overall file statistics per age group
+ COUNT(*) AS "Total Files in Age Group",
+ SUM(size)/1073741824 AS "Total Storage (GB)",
+ 
+ -- Duplicate analysis per age group
+ SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates",
+ SUM(CASE WHEN dupCount > 1 THEN dupCount - 1 ELSE 0 END) AS "Duplicate Instances",
+ SUM(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1073741824 AS "Potential Space Savings (GB)",
+ 
+ -- Duplicate severity in each age group
+ SUM(CASE WHEN dupCount = 2 THEN 1 ELSE 0 END) AS "Files with 2 Copies",
+ SUM(CASE WHEN dupCount BETWEEN 3 AND 5 THEN 1 ELSE 0 END) AS "Files with 3-5 Copies",
+ SUM(CASE WHEN dupCount > 10 THEN 1 ELSE 0 END) AS "Files with 10+ Copies",
+ 
+ -- Average duplicate statistics per age group
+ AVG(CASE WHEN dupCount > 1 THEN dupCount ELSE 0 END) AS "Average Duplicates",
+ AVG(CASE WHEN dupCount > 1 THEN size ELSE 0 END)/1048576 AS "Average Duplicate File Size (MB)",
+ 
+ -- Largest waste in each age group
+ MAX(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1048576 AS "Largest Single File Waste (MB)"
+
+FROM 
+ STORE('/')
+WHERE
+ ClassID = 'idxobject'
+GROUP BY
+ CASE 
+   WHEN createTime IS NULL THEN 'Unknown Age'
+   WHEN (cast(NOW() as number) - createTime) < (365 * 24 * 60 * 60) THEN 'Created <1 Year'
+   WHEN (cast(NOW() as number) - createTime) BETWEEN (365 * 24 * 60 * 60) AND (730 * 24 * 60 * 60) THEN 'Created 1-2 Years'
+   WHEN (cast(NOW() as number) - createTime) BETWEEN (730 * 24 * 60 * 60) AND (1095 * 24 * 60 * 60) THEN 'Created 2-3 Years'
+   WHEN (cast(NOW() as number) - createTime) BETWEEN (1095 * 24 * 60 * 60) AND (1460 * 24 * 60 * 60) THEN 'Created 3-4 Years'
+   ELSE 'Created 4+ Years'
+ END
+ORDER BY
+ "Potential Space Savings (GB)" DESC
+"@
+    },
+    @{
+        Name = "Yearly_Data_Growth_Report"
+        Query = @"
+SET @@DEFAULT_COLUMNS=createTime,name,size,ClassID;
+
+SELECT 
+  YEAR(createTime) as "Creation Year",
+  COUNT(name) as "File Count",
+  SUM(size) as "Total Size (Bytes)",
+  SUM(size)/1048576 as "Total Size (MB)",
+  AVG(size) as "Average File Size (Bytes)"
+WHERE 
+  ClassID LIKE 'idxobject'
+GROUP BY 
+  YEAR(createTime)
+ORDER BY 
+  YEAR(createTime) DESC;
+"@
+    },
+    @{
+        Name = "Data_Owner_Summary"
+        Query = @"
+SET @@DEFAULT_COLUMNS=osOwner,name,size,ClassID;
+
+SELECT 
+  CASE 
+    WHEN osOwner IS NULL THEN 'Unowned'
+    WHEN osOwner = '' THEN 'Unowned'
+    ELSE osOwner
+  END as "Owner",
+  COUNT(name) as "File Count",
+  SUM(size) as "Total Size (Bytes)",
+  SUM(size)/1048576 as "Total Size (MB)",
+  AVG(size) as "Average File Size (Bytes)"
+WHERE 
+  ClassID LIKE 'idxobject'
+GROUP BY 
+  CASE 
+    WHEN osOwner IS NULL THEN 'Unowned'
+    WHEN osOwner = '' THEN 'Unowned'
+    ELSE osOwner 
+  END
+ORDER BY 
+  SUM(size) DESC
+LIMIT 50;
+"@
+    },
+    @{
+        Name = "Simple_Classification_Summary"
+        Query = @"
+SET @@DEFAULT_COLUMNS=classification,name,size,ClassID;
+SELECT
+CASE
+WHEN classification IS NULL THEN 'Unclassified'
+WHEN classification = '' THEN 'Unclassified'
+ELSE classification
+END as "Classification",
+COUNT(name) as "File Count",
+SUM(size) as "Total Size (Bytes)",
+SUM(size)/1048576 as "Total Size (MB)"
+WHERE
+ClassID LIKE 'idxobject'
+GROUP BY
+CASE
+WHEN classification IS NULL THEN 'Unclassified'
+WHEN classification = '' THEN 'Unclassified'
+ELSE classification
+END
+ORDER BY
+COUNT(name) DESC;
+"@
+    },
+    @{
+        Name = "File_Type_Category_Summary_Detailed"
+        Query = @"
+SELECT
+ COALESCE(CATEGORY, 'Uncategorized') AS "Aparavi Category",
+ COUNT(name) AS "File Count",
+ SUM(size)/1073741824 AS "Total Size (GB)",
+ AVG(size)/1048576 AS "Average File Size (MB)",
+ MIN(size)/1048576 AS "Smallest File (MB)",
+ MAX(size)/1048576 AS "Largest File (MB)",
+ 
+ -- Size distribution analysis
+ SUM(CASE WHEN size > 1073741824 THEN 1 ELSE 0 END) AS "Large Files (>1GB)",
+ SUM(CASE WHEN size BETWEEN 104857600 AND 1073741824 THEN 1 ELSE 0 END) AS "Medium Files (100MB-1GB)",
+ SUM(CASE WHEN size < 1048576 THEN 1 ELSE 0 END) AS "Small Files (<1MB)",
+ 
+ -- Age and activity analysis
+ SUM(CASE WHEN (cast(NOW() as number) - createTime) < (30 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Created Last 30 Days",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN 1 ELSE 0 END) AS "Not Accessed 1+ Years",
+ SUM(CASE WHEN (cast(NOW() as number) - accessTime) > (365 * 24 * 60 * 60) THEN size ELSE 0 END)/1073741824 AS "Stale Data Size (GB)",
+ 
+ -- Duplicate analysis
+ SUM(CASE WHEN dupCount > 1 THEN 1 ELSE 0 END) AS "Files with Duplicates",
+ SUM(CASE WHEN dupCount > 1 THEN size * (dupCount - 1) ELSE 0 END)/1073741824 AS "Duplicate Waste (GB)"
+
+FROM
+ STORE('/')
+WHERE
+ ClassID = 'idxobject'
+GROUP BY
+ COALESCE(CATEGORY, 'Uncategorized')
+ORDER BY
+ "Total Size (GB)" DESC
+"@
     }
 )
 
