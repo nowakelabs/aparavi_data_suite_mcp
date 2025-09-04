@@ -1,5 +1,21 @@
 # PowerShell script to run all Aparavi AQL reports and save to JSON files
-# Usage: .\run-all-reports.ps1
+# 
+# Usage Examples:
+#   .\run-all-reports.ps1                                    # Run all fast reports automatically
+#   .\run-all-reports.ps1 -Interactive                      # Interactive menu to select reports
+#   .\run-all-reports.ps1 -IncludeSlow                      # Run all reports including slow ones
+#   .\run-all-reports.ps1 -Interactive -IncludeSlow         # Interactive mode with slow reports
+#   .\run-all-reports.ps1 -AparaviHost "10.1.10.163"       # Connect to specific host
+#   .\run-all-reports.ps1 -Username "admin" -Password "pwd" # Custom credentials
+#
+# Parameters:
+#   -AparaviHost: Aparavi server hostname/IP (default: localhost)
+#   -AparaviPort: Aparavi server port (default: 80)
+#   -Username: Authentication username (default: root)
+#   -Password: Authentication password (default: root)
+#   -Interactive: Show interactive menu for report selection
+#   -IncludeSlow: Include long-running reports that may take several minutes
+#
 # Requires: PowerShell 5.1 or later
 
 param(
