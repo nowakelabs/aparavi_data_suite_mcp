@@ -378,6 +378,7 @@ ORDER BY
     },
     @{
         Name = "Duplicate_File_Summary_Detailed"
+        IsLongRunning = $true
         Query = @"
 SELECT
  CASE 
