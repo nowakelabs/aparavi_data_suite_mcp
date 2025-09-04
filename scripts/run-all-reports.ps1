@@ -1,22 +1,30 @@
-# PowerShell script to run all Aparavi AQL reports and save to JSON files
+# Aparavi AQL Reports Runner
+# Executes Aparavi AQL reports and saves results to timestamped JSON files
 # 
-# Usage Examples:
+# USAGE EXAMPLES:
 #   .\run-all-reports.ps1                                    # Run all fast reports automatically
 #   .\run-all-reports.ps1 -Interactive                      # Interactive menu to select reports
 #   .\run-all-reports.ps1 -IncludeSlow                      # Run all reports including slow ones
 #   .\run-all-reports.ps1 -Interactive -IncludeSlow         # Interactive mode with slow reports
+#   .\run-all-reports.ps1 -File "sample.json"               # Use reports from JSON export file
 #   .\run-all-reports.ps1 -AparaviHost "10.1.10.163"       # Connect to specific host
 #   .\run-all-reports.ps1 -Username "admin" -Password "pwd" # Custom credentials
 #
-# Parameters:
-#   -AparaviHost: Aparavi server hostname/IP (default: localhost)
-#   -AparaviPort: Aparavi server port (default: 80)
-#   -Username: Authentication username (default: root)
-#   -Password: Authentication password (default: root)
-#   -Interactive: Show interactive menu for report selection
-#   -IncludeSlow: Include long-running reports that may take several minutes
+# PARAMETERS:
+#   -AparaviHost  Aparavi server hostname/IP (default: localhost)
+#   -AparaviPort  Aparavi server port (default: 80)
+#   -Username     Authentication username (default: root)
+#   -Password     Authentication password (default: root)
+#   -Interactive  Show interactive menu for report selection
+#   -IncludeSlow  Include long-running reports that may take several minutes
+#   -File         Path to Aparavi JSON export file (uses built-in reports if not specified)
 #
-# Requires: PowerShell 5.1 or later
+# OUTPUT:
+#   - Creates timestamped folders in ./reports/ directory
+#   - Saves each report as JSON file with report name
+#   - Generates execution log with timing and status information
+#
+# REQUIREMENTS: PowerShell 5.1 or later
 
 param(
     [string]$AparaviHost = "localhost",
@@ -24,7 +32,8 @@ param(
     [string]$Username = "root",
     [string]$Password = "root",
     [switch]$Interactive,
-    [switch]$IncludeSlow
+    [switch]$IncludeSlow,
+    [string]$File = ""
 )
 
 # Create reports directory if it doesn't exist
@@ -72,6 +81,40 @@ $AuthBase64 = [System.Convert]::ToBase64String($AuthBytes)
 $Headers = @{
     "Authorization" = "Basic $AuthBase64"
     "Content-Type" = "application/json"
+}
+
+# Function to load reports from JSON export file
+function Load-ReportsFromJson {
+    param([string]$JsonFilePath)
+    
+    if (!(Test-Path $JsonFilePath)) {
+        Write-Log "JSON export file not found: $JsonFilePath" "ERROR"
+        return @()
+    }
+    
+    try {
+        $JsonContent = Get-Content $JsonFilePath -Raw | ConvertFrom-Json
+        $LoadedReports = @()
+        
+        foreach ($ReportId in $JsonContent.PSObject.Properties.Name) {
+            $Report = $JsonContent.$ReportId
+            $ReportName = $Report.name -replace "APARAVI - ", "" -replace "[^a-zA-Z0-9_]", "_"
+            $Query = $Report.query.queries[0].value
+            
+            $LoadedReports += @{
+                Name = $ReportName
+                Query = $Query
+                IsLongRunning = $false  # Default to fast, can be overridden
+            }
+        }
+        
+        Write-Log "Loaded $($LoadedReports.Count) reports from JSON export: $JsonFilePath" "INFO"
+        return $LoadedReports
+    }
+    catch {
+        Write-Log "Error loading JSON export file: $($_.Exception.Message)" "ERROR"
+        return @()
+    }
 }
 
 # Define all reports with their names, AQL queries, and category usage flag
@@ -587,6 +630,18 @@ ORDER BY
 "@
     }
 )
+
+# Override reports with JSON export if specified
+if ($File -ne "") {
+    Write-Log "Using JSON export file: $File" "INFO"
+    $JsonReports = Load-ReportsFromJson $File
+    if ($JsonReports.Count -gt 0) {
+        $Reports = $JsonReports
+        Write-Log "Replaced built-in reports with $($Reports.Count) reports from JSON export" "INFO"
+    } else {
+        Write-Log "Failed to load JSON export, falling back to built-in reports" "WARNING"
+    }
+}
 
 # Function to execute AQL query with logging and timing
 function Invoke-AQLQuery {
