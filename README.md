@@ -575,6 +575,113 @@ The system includes **22 pre-built reports** in categories:
 
 ---
 
+## 🚀 Performance Optimization for Large Environments
+
+### Cache Warming & Data Preparation
+
+**🏢 Enterprise environments with large data footprints (100GB+ or 1M+ files)** may experience slower initial responses as Aparavi Analytics processes complex queries. Here's how to optimize performance:
+
+#### Automatic Cache Warming with Run-All-Reports Script
+
+The included PowerShell script pre-executes all reports to warm up Aparavi's analytics cache, dramatically improving response times for subsequent Claude conversations.
+
+**Windows Setup (Recommended for Large Environments):**
+
+```powershell
+# Navigate to the project directory
+cd aparavi_data_suite_mcp
+
+# Quick cache warm-up (excludes slow reports - takes 5-10 minutes)
+.\scripts\run-all-reports.ps1
+
+# Complete cache warm-up (includes all reports - takes 15-30 minutes)
+.\scripts\run-all-reports.ps1 -IncludeSlow
+
+# Interactive mode - choose which reports to run
+.\scripts\run-all-reports.ps1 -Interactive
+
+# For remote Aparavi instances
+.\scripts\run-all-reports.ps1 -AparaviHost "192.168.1.100" -Username "admin" -Password "yourpassword"
+```
+
+**Mac/Linux Setup:**
+
+```bash
+# Run via PowerShell Core (install if needed: brew install powershell)
+pwsh ./scripts/run-all-reports.ps1
+
+# Alternative: Use the MCP server to run reports
+# Start Claude Desktop and run:
+# "Run all available reports to warm up the cache"
+```
+
+#### What Cache Warming Does
+
+**Before Warming:** First-time queries may take 30-120 seconds as Aparavi:
+- Indexes file metadata across data sources
+- Calculates complex aggregations (duplicates, growth trends)
+- Builds internal query optimization plans
+
+**After Warming:** Same queries respond in 2-10 seconds because:
+- ✅ Analytics results are cached in memory
+- ✅ Query execution plans are optimized
+- ✅ File metadata is pre-indexed
+- ✅ Complex calculations are pre-computed
+
+#### Performance Optimization Schedule
+
+**Daily (Automated):**
+```powershell
+# Schedule via Windows Task Scheduler or cron
+.\scripts\run-all-reports.ps1 -IncludeSlow > cache-warm-$(Get-Date -Format 'yyyyMMdd').log
+```
+
+**Before Important Analysis:**
+- Run cache warming 15-30 minutes before executive presentations
+- Warm cache after major data ingestion or Aparavi updates
+- Schedule during off-hours to avoid impacting production queries
+
+#### Enterprise Performance Tips
+
+**🔄 Query Response Optimization:**
+- **Small results first**: Ask for "top 10" or "last 30 days" before broad queries
+- **Use date filters**: "Files created since 2024" vs. "all files ever"
+- **Specific locations**: "Finance department files" vs. "all company files"
+
+**⚡ Conversation Flow:**
+```
+1. "Check Aparavi server health" (verifies connection)
+2. "Show me storage usage by top 5 departments" (quick overview)
+3. "Find duplicate files over 100MB in finance folders" (specific analysis)
+4. "Run complete storage optimization workflow" (comprehensive analysis)
+```
+
+**🏗️ Infrastructure Recommendations:**
+- **Aparavi Server**: 8GB+ RAM, SSD storage for optimal query performance
+- **Docker Resources**: Increase Docker Desktop memory to 4GB+ for large datasets
+- **Network**: Ensure gigabit connection between Aparavi server and client
+
+#### Troubleshooting Large Environment Issues
+
+**"Query timeout" or "Connection reset":**
+```powershell
+# Increase timeout and run cache warming in batches
+.\scripts\run-all-reports.ps1 -Interactive
+# Select smaller subsets of reports to run
+```
+
+**"Out of memory" errors:**
+- Restart Aparavi Data Suite service
+- Increase system RAM or reduce concurrent queries
+- Use filters to limit query scope: "last 6 months" instead of "all time"
+
+**Slow Docker performance:**
+- Increase Docker Desktop memory allocation
+- Use local installation method for very large environments
+- Consider running MCP server directly on Aparavi server machine
+
+---
+
 ## 🚀 Advanced Usage
 
 ### Power User Tips
