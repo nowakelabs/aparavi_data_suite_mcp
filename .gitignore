@@ -185,3 +185,4 @@ tests/test_results.json
 
 # Reports output directory
 scripts/reports/
+.DS_Store
